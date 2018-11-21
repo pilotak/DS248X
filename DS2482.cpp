@@ -72,26 +72,69 @@ bool DS2482::init() {
     return false;
 }
 
-void DS2482::reset() {
-    /*waitOnBusy();
-    uint32_t flag = _event.wait_any(ERROR_FLAG | DONE_FLAG, DS2482_DEFAULT_TIMEOUT);
+bool DS2482::reset() {
+    /* TASK LIST
+    - waitOnBusy
+    - clear strong pull up if set
+    - waitOnBusy
+    - send reset command
+    - waitOnBusy
+    - get data from waitOnBusy, compare and return
+     */
 
-    if (flag == DONE_FLAG) {
-        // Datasheet warns that reset with SPU set can exceed max ratings
-        clearConfig(StrongPullUp);
+    uint32_t flag;
+    bool pull_up = _config & StrongPullUp;
 
-        waitOnBusy();
-        uint32_t flag = _event.wait_any(ERROR_FLAG | DONE_FLAG, DS2482_DEFAULT_TIMEOUT);
+    /*if (pull_up && !clearConfig(StrongPullUp)) {
+        return false;
+    }*/
+
+    _try_counter = 0;
+    waitOnBusy();
+    flag = _event.wait_any(ERROR_FLAG | READY_FLAG, DS2482_DEFAULT_TIMEOUT);
+
+    if (flag == READY_FLAG) {
+        _tx_buf[0] = DS2482_COMMAND_RESETWIRE;
+
+        if (send(1, 0)) {
+            flag = _event.wait_any(ERROR_FLAG | OK_FLAG, DS2482_DEFAULT_TIMEOUT);
+
+            if (flag == OK_FLAG) {
+                _try_counter = 0;
+                waitOnBusy();
+                flag = _event.wait_any(ERROR_FLAG | READY_FLAG, DS2482_DEFAULT_TIMEOUT);
+
+                if (flag == READY_FLAG) {
+                    printf("ret: %u\n", _rx_buf[0]);
+                }
+            }
+        }
+    }
+
+
+    /*_tx_buf[0] = DS2482_COMMAND_RESETWIRE;
+
+    if (sendData(1, 0)) {
+        flag = _event.wait_any(ERROR_FLAG | DONE_FLAG, DS2482_DEFAULT_TIMEOUT);
 
         if (flag == DONE_FLAG) {
-            _tx_buf[0] = DS2482_COMMAND_RESETWIRE;
+            _try_counter = 0;
+            waitOnBusy();
+            flag = _event.wait_any(ERROR_FLAG | READY_FLAG, DS2482_DEFAULT_TIMEOUT);
 
-
-            uint8_t status = waitOnBusy();
-
-            return (status & DS2482_STATUS_PPD) ? true : false;
+            if (flag == READY_FLAG) {
+                printf("ret: %u\n", _rx_buf[0]);
+                return (_rx_buf[0] & DS2482_STATUS_PPD) ? true : false;
+            }
         }
     }*/
+
+
+    /*if (pull_up && !setConfig(StrongPullUp)) {
+        return false;
+    }*/
+
+    return false;
 }
 
 void DS2482::deviceReset() {
@@ -118,20 +161,13 @@ bool DS2482::sendConfig() {
     _tx_buf[0] = DS2482_COMMAND_WRITECONFIG;
     _tx_buf[1] = _config | (~_config) << 4;
 
-    _try_counter = 0;
-    waitOnBusy();
+    if (sendData(2, 1)) {
+        uint32_t flag = _event.wait_any(ERROR_FLAG | DONE_FLAG, DS2482_DEFAULT_TIMEOUT);
 
-    uint32_t flag = _event.wait_any(ERROR_FLAG | READY_FLAG, DS2482_DEFAULT_TIMEOUT);
-
-    if (flag == READY_FLAG) {
-        if (send(2, 1)) {
-            flag = _event.wait_any(OK_FLAG | ERROR_FLAG, DS2482_DEFAULT_TIMEOUT);
-
-            if (flag == OK_FLAG) {
-                if (_config == _rx_buf[0]) {
-                    _config = _rx_buf[0];
-                    return true;
-                }
+        if (flag == DONE_FLAG) {
+            if (_config == _rx_buf[0]) {
+                _config = _rx_buf[0];
+                return true;
             }
         }
     }
@@ -139,9 +175,6 @@ bool DS2482::sendConfig() {
     return false;
 }
 
-void DS2482::selectChannel(uint8_t channel) {
-
-}
 bool DS2482::setConfig(ds2482_config type) {
     _config |= type;
     return sendConfig();
@@ -150,6 +183,10 @@ bool DS2482::setConfig(ds2482_config type) {
 bool DS2482::clearConfig(ds2482_config type) {
     _config &= ~(type);
     return sendConfig();
+}
+
+void DS2482::selectChannel(uint8_t channel) {
+
 }
 
 uint8_t DS2482::search(uint8_t *newAddr) {
@@ -232,16 +269,23 @@ void DS2482::write(uint8_t data) {
 }
 
 bool DS2482::sendData(uint8_t tx_len, uint16_t rx_len) {
-    /*_try_counter = 0;
-    //waitOnBusy();
+    _try_counter = 0;
+    waitOnBusy();
 
-    if (send(tx_len, rx_len)) {
-        uint32_t flag = _event.wait_any(OK_FLAG | ERROR_FLAG, DS2482_DEFAULT_TIMEOUT);
+    uint32_t flag = _event.wait_any(ERROR_FLAG | READY_FLAG, DS2482_DEFAULT_TIMEOUT);
 
-        if (flag == DONE_FLAG) {
-            _event.set(DONE_FLAG);
+    if (flag == READY_FLAG) {
+        if (send(tx_len, rx_len)) {
+            flag = _event.wait_any(OK_FLAG | ERROR_FLAG, DS2482_DEFAULT_TIMEOUT);
+
+            if (flag == OK_FLAG) {
+                _event.set(DONE_FLAG);
+                return true;
+            }
         }
-    }*/
+    }
+
+    _event.set(ERROR_FLAG);
     return false;
 }
 
@@ -288,6 +332,7 @@ void DS2482::waitOnBusy() {
     }
 }
 
+
 void DS2482::internalCb(int event) {
     bool data_ok = false;
 
@@ -300,7 +345,48 @@ void DS2482::internalCb(int event) {
     } else {
         data_ok = true;
 
+        // if (_task == None) {
         _event.set(OK_FLAG);
+
+        /*} else if (_stage == BusyWait) {
+            if (!(_rx_buf[0] & DS2482_STATUS_BUSY)) {
+                if (_task == Reset) {
+                    _stage = GetDataReady;
+
+                    if (_task_id == 0) {
+                        _config &= ~(StrongPullUp);
+                        _tx_buf[0] = DS2482_COMMAND_WRITECONFIG;
+                        _tx_buf[1] = _config | (~_config) << 4;
+
+                        _queue->call(callback(this, &DS2482::send), 2, 1, false);
+
+                    } else if (_task_id == 2) {
+                        _tx_buf[0] = DS2482_COMMAND_RESETWIRE;
+
+                        _queue->call(callback(this, &DS2482::send), 1, 0, false);
+
+                    } else if (_task_id == 4) {
+                        if (_rx_buf[0] & DS2482_STATUS_PPD) {
+                            // doneCb.call(reset_ok);
+                        }
+
+                        _task = None;
+                    }
+
+                    _task_id++;
+                }
+
+            } else if ((_try_counter + 1) < DS2482_DEFAULT_TIMEOUT) {
+                _try_counter++;
+                _queue->call_in(1, callback(this, &DS2482::dataReadyReq));
+
+            } else {
+                // doneCb.call(error);
+            }
+        } else if (_stage == GetDataReady) {
+            _task_id++;
+            _queue->call(callback(this, &DS2482::dataReadyReq));
+        }*/
     }
 
     if (!data_ok) {

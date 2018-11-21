@@ -102,7 +102,7 @@ class DS2482 {
   DS2482(PinName sda, PinName scl, EventQueue * queue, int8_t address = DS2482_DEFAULT_ADDRESS, uint32_t frequency = 400000);
   virtual ~DS2482(void);
   bool init();
-  void reset();
+  bool reset();
   void deviceReset();
   void selectChannel(uint8_t channel);
   bool setConfig(ds2482_config type);
@@ -129,10 +129,10 @@ class DS2482 {
   typedef enum {
     Init,
     Ready,
-    Waiting,
-    GetData,
-    DataReady
+    BusyWait,
+    GetDataReady
   } Stage;
+
 
   const int8_t _i2c_addr;
 
@@ -153,6 +153,7 @@ class DS2482 {
   void internalCb(int event);
   bool sendConfig();
   void waitOnBusy();
+  void dataReadyReq();
 };
 
 #endif  // DS2482_H
