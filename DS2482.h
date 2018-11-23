@@ -89,7 +89,16 @@ SOFTWARE.
 #define DS2482_RCH_IO6    0x8E  //< DS2482 Select Channel IO6
 #define DS2482_RCH_IO7  0x87  //< DS2482 Select Channel IO7
 
-
+#define BYTE_TO_BINARY_PATTERN "%c%c%c%c%c%c%c%c"
+#define BYTE_TO_BINARY(byte)  \
+  (byte & 0x80 ? '1' : '0'), \
+  (byte & 0x40 ? '1' : '0'), \
+  (byte & 0x20 ? '1' : '0'), \
+  (byte & 0x10 ? '1' : '0'), \
+  (byte & 0x08 ? '1' : '0'), \
+  (byte & 0x04 ? '1' : '0'), \
+  (byte & 0x02 ? '1' : '0'), \
+  (byte & 0x01 ? '1' : '0') 
 
 class DS2482 {
  public:
@@ -104,11 +113,11 @@ class DS2482 {
   bool init();
   bool reset();
   void deviceReset();
-  void selectChannel(uint8_t channel);
+  bool selectChannel(uint8_t channel);
   bool setConfig(ds2482_config type);
   bool clearConfig(ds2482_config type);
   void resetSearch();
-  uint8_t search(uint8_t *newAddr);
+  uint8_t search(char *address);
   void select(const uint8_t rom[8]);
   void write(uint8_t data);
   uint8_t getConfig();

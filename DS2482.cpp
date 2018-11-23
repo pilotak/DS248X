@@ -85,31 +85,28 @@ bool DS2482::reset() {
     uint32_t flag;
     bool pull_up = _config & StrongPullUp;
 
-    /*if (pull_up && !clearConfig(StrongPullUp)) {
+    if (pull_up && !clearConfig(StrongPullUp)) {
         return false;
-    }*/
+    }
 
     _try_counter = 0;
-    waitOnBusy();
-    flag = _event.wait_any(ERROR_FLAG | READY_FLAG, DS2482_DEFAULT_TIMEOUT);
+    _tx_buf[0] = DS2482_COMMAND_RESETWIRE;
 
-    if (flag == READY_FLAG) {
-        _tx_buf[0] = DS2482_COMMAND_RESETWIRE;
+    if (sendData(1, 0)) {
+        flag = _event.wait_any(ERROR_FLAG | DONE_FLAG, DS2482_DEFAULT_TIMEOUT);
 
-        if (send(1, 0)) {
-            flag = _event.wait_any(ERROR_FLAG | OK_FLAG, DS2482_DEFAULT_TIMEOUT);
+        if (flag == DONE_FLAG) {
+            _try_counter = 0;
+            waitOnBusy();
+            flag = _event.wait_any(ERROR_FLAG | READY_FLAG, DS2482_DEFAULT_TIMEOUT);
 
-            if (flag == OK_FLAG) {
-                _try_counter = 0;
-                waitOnBusy();
-                flag = _event.wait_any(ERROR_FLAG | READY_FLAG, DS2482_DEFAULT_TIMEOUT);
-
-                if (flag == READY_FLAG) {
-                    printf("ret: %u\n", _rx_buf[0]);
-                }
+            if (flag == READY_FLAG) {
+                printf("ret: " BYTE_TO_BINARY_PATTERN "\n", BYTE_TO_BINARY(_rx_buf[0]));
+                return _rx_buf[0] & DS2482_STATUS_PPD;
             }
         }
     }
+
 
 
     /*_tx_buf[0] = DS2482_COMMAND_RESETWIRE;
@@ -123,16 +120,16 @@ bool DS2482::reset() {
             flag = _event.wait_any(ERROR_FLAG | READY_FLAG, DS2482_DEFAULT_TIMEOUT);
 
             if (flag == READY_FLAG) {
-                printf("ret: %u\n", _rx_buf[0]);
-                return (_rx_buf[0] & DS2482_STATUS_PPD) ? true : false;
+                printf("ret: " BYTE_TO_BINARY_PATTERN "\n", BYTE_TO_BINARY(_rx_buf[0]));
+                return _rx_buf[0] & DS2482_STATUS_PPD;
             }
         }
     }*/
 
 
-    /*if (pull_up && !setConfig(StrongPullUp)) {
+    if (pull_up && !setConfig(StrongPullUp)) {
         return false;
-    }*/
+    }
 
     return false;
 }
@@ -185,11 +182,28 @@ bool DS2482::clearConfig(ds2482_config type) {
     return sendConfig();
 }
 
-void DS2482::selectChannel(uint8_t channel) {
+bool DS2482::selectChannel(uint8_t channel) {
+    uint32_t flag;
+    char read_channel;
 
+    read_channel = (channel | (~channel) << 3) & ~(1 << 6);
+    channel |= (~channel) << 4;
+
+    _tx_buf[0] = DS2482_CMD_CHSL;
+    _tx_buf[1] = channel;
+
+    if (sendData(2, 1)) {
+        flag = _event.wait_any(ERROR_FLAG | DONE_FLAG, DS2482_DEFAULT_TIMEOUT);
+
+        if (flag == DONE_FLAG) {
+            return (_rx_buf[0] == read_channel);
+        }
+    }
+
+    return false;
 }
 
-uint8_t DS2482::search(uint8_t *newAddr) {
+uint8_t DS2482::search(char *address) {
     /*uint8_t direction;
     uint8_t last_zero = 0;
 
@@ -201,59 +215,99 @@ uint8_t DS2482::search(uint8_t *newAddr) {
         return 0;
     }
 
+    _try_counter = 0;
     waitOnBusy();
 
-    wireWriteByte(WIRE_COMMAND_SEARCH);
+    uint32_t flag = _event.wait_any(ERROR_FLAG | READY_FLAG, DS2482_DEFAULT_TIMEOUT);
 
-    for (uint8_t i = 0; i < 64; i++) {
-        int searchByte = i / 8;
-        int searchBit = 1 << i % 8;
+    if (flag == READY_FLAG) {
+        _tx_buf[0] = WIRE_COMMAND_SEARCH;
 
-        if (i < searchLastDiscrepancy) {
-            direction = searchAddress[searchByte] & searchBit;
+        if (sendData(1, 0)) {
+            flag = _event.wait_any(ERROR_FLAG | DONE_FLAG, DS2482_DEFAULT_TIMEOUT);
 
-        } else {
-            direction = i == searchLastDiscrepancy;
-        }
+            if (flag == DONE_FLAG) {
+                for (uint8_t i = 0; i < 64; i++) {
+                    int searchByte = i / 8;
+                    int searchBit = 1 << i % 8;
 
-        waitOnBusy();
-        begin();
-        writeByte(DS2482_COMMAND_TRIPLET);
-        writeByte(direction ? 0x80 : 0x00);
-        end();
+                    if (i < searchLastDiscrepancy) {
+                        direction = searchAddress[searchByte] & searchBit;
 
-        uint8_t status = waitOnBusy();
+                    } else {
+                        direction = i == searchLastDiscrepancy;
+                    }
 
-        uint8_t id = status & DS2482_STATUS_SBR;
-        uint8_t comp_id = status & DS2482_STATUS_TSB;
-        direction = status & DS2482_STATUS_DIR;
+                    _try_counter = 0;
+                    waitOnBusy();
+                    flag = _event.wait_any(ERROR_FLAG | READY_FLAG, DS2482_DEFAULT_TIMEOUT);
 
-        if (id && comp_id) {
-            return 0;
+                    if (flag == READY_FLAG) {
+                        _tx_buf[0] = DS2482_COMMAND_TRIPLET;
+                        _tx_buf[1] = (direction ? 0x80 : 0x00);
 
-        } else {
-            if (!id && !comp_id && !direction) {
-                last_zero = i;
+                        if (sendData(2, 0)) {
+                            flag = _event.wait_any(ERROR_FLAG | DONE_FLAG, DS2482_DEFAULT_TIMEOUT);
+
+                            if (flag == DONE_FLAG) {
+                                _try_counter = 0;
+                                waitOnBusy();
+                                flag = _event.wait_any(ERROR_FLAG | READY_FLAG, DS2482_DEFAULT_TIMEOUT);
+
+                                if (flag == READY_FLAG) {
+                                    uint8_t id = _rx_buf[0] & DS2482_STATUS_SBR;
+                                    uint8_t comp_id = _rx_buf[0] & DS2482_STATUS_TSB;
+                                    direction = _rx_buf[0] & DS2482_STATUS_DIR;
+
+                                    printf("ret: " BYTE_TO_BINARY_PATTERN "\n", BYTE_TO_BINARY(_rx_buf[0]));
+
+                                    if (id && comp_id) {
+                                        printf("tady 4\n");
+                                        return 0;
+
+                                    } else {
+                                        if (!id && !comp_id && !direction) {
+                                            last_zero = i;
+                                        }
+                                    }
+
+                                    if (direction) {
+                                        searchAddress[searchByte] |= searchBit;
+
+                                    } else {
+                                        searchAddress[searchByte] &= ~searchBit;
+                                    }
+                                }
+
+                            } else {
+                                printf("tady 3\n");
+                            }
+                        }
+
+                    } else {
+                        printf("tady 2\n");
+                    }
+                }
+
+                searchLastDiscrepancy = last_zero;
+
+                if (!last_zero) {
+                    searchLastDeviceFlag = 1;
+                }
+
+                memcpy(address, searchAddress, 8);
+
+            } else {
+                printf("tady 1\n");
             }
         }
-
-        if (direction)
-            searchAddress[searchByte] |= searchBit;
-        else
-            searchAddress[searchByte] &= ~searchBit;
-
     }
 
-    searchLastDiscrepancy = last_zero;
+    return 1;*/
 
-    if (!last_zero)
-        searchLastDeviceFlag = 1;
-
-    for (uint8_t i = 0; i < 8; i++)
-        address[i] = searchAddress[i];*/
-
-    return 1;
+    return 0;
 }
+
 void DS2482::resetSearch() {
     searchLastDiscrepancy = 0;
     searchLastDeviceFlag = 0;
