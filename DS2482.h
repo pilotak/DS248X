@@ -30,7 +30,10 @@ SOFTWARE.
 
 #define DS2482_DEFAULT_ADDRESS (0x18 << 1)
 
+#define DS2482_COMMAND_TRIPLET     0x78
 #define DS2482_COMMAND_SINGLEBIT   0x87
+#define DS2482_COMMAND_READBYTE    0x96
+#define DS2482_COMMAND_WRITEBYTE   0xA5
 #define DS2482_COMMAND_RESETWIRE   0xB4
 #define DS2482_COMMAND_CHSL        0xC3
 #define DS2482_COMMAND_WRITECONFIG 0xD2
@@ -39,6 +42,10 @@ SOFTWARE.
 
 #define DS2482_POINTER_CONFIG 0xC3
 #define DS2482_POINTER_STATUS 0xF0
+
+#define WIRE_COMMAND_SEARCH 0xF0
+#define WIRE_COMMAND_SELECT 0x55
+#define WIRE_COMMAND_SKIP   0xCC
 
 #define DS2482_CONFIG_APU (1<<0)
 #define DS2482_CONFIG_PPM (1<<1)
@@ -82,6 +89,10 @@ class DS2482 {
   // Device commands
   bool init();
   void device_reset();
+  char device_read();
+  bool device_read_bytes(char* data, uint16_t len);
+  bool device_write(char data);
+  bool device_write_bytes(const char* data, uint16_t len);
   char get_config();
   bool set_config(DS2482_config type);
   bool clear_config(DS2482_config type);
@@ -95,9 +106,10 @@ class DS2482 {
   bool write(char data);
   bool write_bit(bool data);
   bool write_bytes(const char* data, uint16_t len);
-  char search(char* addr);
+  bool skip();
+  bool search(char* addr);
   void reset_search();
-  void select(const char rom[8]);
+  bool select(const char rom[8]);
 
   static uint8_t crc8(const char *addr, uint8_t len);
   void attach(Callback<void(uint8_t)> function);
