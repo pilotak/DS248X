@@ -41,6 +41,7 @@ SOFTWARE.
 #define DS2482_COMMAND_RESET       0xF0
 
 #define DS2482_POINTER_CONFIG 0xC3
+#define DS2482_POINTER_DATA   0xE1
 #define DS2482_POINTER_STATUS 0xF0
 
 #define WIRE_COMMAND_SEARCH 0xF0
@@ -97,6 +98,8 @@ class DS2482 {
   bool set_config(DS2482_config type);
   bool clear_config(DS2482_config type);
   bool select_channel(char channel);
+  static char get_crc8(const char* data, uint8_t len = 8);
+  bool crc8(const char* data, uint8_t len);
 
   // 1-Wire commands
   bool reset();
@@ -104,14 +107,13 @@ class DS2482 {
   bool read_bit();
   bool read_bytes(char* data, uint16_t len);
   bool write(char data);
-  bool write_bit(bool data);
+  bool write_bit(bool bit);
   bool write_bytes(const char* data, uint16_t len);
   bool skip();
   bool search(char* addr);
   void reset_search();
   bool select(const char rom[8]);
 
-  static uint8_t crc8(const char *addr, uint8_t len);
   void attach(Callback<void(uint8_t)> function);
 
  private:
@@ -121,9 +123,9 @@ class DS2482 {
   char _config;
   Callback<void(uint8_t)> _callback;
 
-  char searchAddress[8];
-  char searchLastDiscrepancy;
-  char searchLastDeviceFlag;
+  char _search_address[8];
+  char _last_discrepancy;
+  bool _last_device_flag;
 
   char wait_busy();
   bool send_config();

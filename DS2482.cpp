@@ -28,14 +28,18 @@ SOFTWARE.
 DS2482::DS2482(I2C * i2c_obj, char address):
     _address(address),
     _config(UCHAR_MAX),
-    _callback(NULL) {
+    _callback(NULL),
+    _last_discrepancy(0),
+    _last_device_flag(false) {
     _i2c = i2c_obj;
 }
 
 DS2482::DS2482(PinName sda, PinName scl, char address, uint32_t frequency):
     _address(address),
     _config(UCHAR_MAX),
-    _callback(NULL) {
+    _callback(NULL),
+    _last_discrepancy(0),
+    _last_device_flag(false) {
     _i2c = new (_i2c_buffer) I2C(sda, scl);
     _i2c->frequency(frequency);
 }
@@ -89,10 +93,7 @@ bool DS2482::device_read_bytes(char* data, uint16_t len) {
 }
 
 bool DS2482::device_write(char data) {
-    char buf[1];
-    buf[0] = data;
-
-    return device_write_bytes(buf, 1);
+    return device_write_bytes(&data, 1);
 }
 
 bool DS2482::device_write_bytes(const char* data, uint16_t len) {
@@ -146,8 +147,7 @@ bool DS2482::clear_config(DS2482_config type) {
 
 bool DS2482::select_channel(char channel) {
     char buf[2];
-    // char read_channel;
-    // read_channel = (channel | (~channel) << 3) & ~(1 << 6);
+    char read_channel = (channel | (~channel) << 3) & ~(1 << 6);
 
     channel |= (~channel) << 4;
 
@@ -155,10 +155,14 @@ bool DS2482::select_channel(char channel) {
     buf[1] = channel;
 
     if (device_write_bytes(buf, 2)) {
-        _config = get_config();
+        wait_busy();
 
-        if (_config != UCHAR_MAX) {
-            return true;
+        if (device_read() == read_channel) {
+            _config = get_config();
+
+            if (_config != UCHAR_MAX) {
+                return true;
+            }
         }
     }
 
@@ -206,7 +210,11 @@ bool DS2482::reset() {
 }
 
 char DS2482::read() {
+    wait_busy();
+
     if (device_write(DS2482_COMMAND_READBYTE)) {
+        wait_busy();
+        set_read_pointer(DS2482_POINTER_DATA);
         return device_read();
     }
 
@@ -221,19 +229,19 @@ bool DS2482::read_bit() {
 }
 
 bool DS2482::read_bytes(char* data, uint16_t len) {
-    if (device_write(DS2482_COMMAND_READBYTE)) {
-        return device_read_bytes(data, len);
+    for (uint16_t i = 0; i < len; ++i) {
+        data[i] = read();
     }
 
-    return false;
+    return true;
 }
 
-bool DS2482::write_bit(bool data) {
+bool DS2482::write_bit(bool bit) {
     char buf[2];
     wait_busy();
 
     buf[0] = DS2482_COMMAND_SINGLEBIT;
-    buf[1] = data ? 0x80 : 0x00;
+    buf[1] = bit ? 0x80 : 0x00;
 
     return device_write_bytes(buf, 2);
 }
@@ -243,18 +251,24 @@ bool DS2482::write(char data) {
     buf[0] = DS2482_COMMAND_WRITEBYTE;
     buf[1] = data;
 
+    wait_busy();
+
     return device_write_bytes(buf, 2);
 }
 
 bool DS2482::write_bytes(const char* data, uint16_t len) {
-    if (device_write(DS2482_COMMAND_WRITEBYTE)) {
-        return device_write_bytes(data, len);
+    for (uint16_t i = 0; i < len; ++i) {
+        if (!write(data[i])) {
+            return false;
+        }
     }
 
-    return false;
+    return true;
 }
 
 bool DS2482::skip() {
+    wait_busy();
+
     return write(WIRE_COMMAND_SKIP);
 }
 
@@ -263,10 +277,9 @@ bool DS2482::search(char *address) {
     uint8_t last_zero = 0;
     char buf[2];
 
-    if (!searchLastDeviceFlag) {
+    if (!_last_device_flag) {
         if (!reset()) {
-            searchLastDiscrepancy = 0;
-            searchLastDeviceFlag = 0;
+            reset_search();
             return false;
         }
 
@@ -275,14 +288,14 @@ bool DS2482::search(char *address) {
         write(WIRE_COMMAND_SEARCH);
 
         for (uint8_t i = 0; i < 64; i++) {
-            uint8_t searchByte = i / 8;
-            uint8_t searchBit = 1 << i % 8;
+            uint8_t searchByte = i >> 3;
+            uint8_t searchBit = 1 << (i & 7);
 
-            if (i < searchLastDiscrepancy) {
-                direction = searchAddress[searchByte] & searchBit;
+            if (i < _last_discrepancy) {
+                direction = _search_address[searchByte] & searchBit;
 
             } else {
-                direction = i == searchLastDiscrepancy;
+                direction = i == _last_discrepancy;
             }
 
             wait_busy();
@@ -297,7 +310,7 @@ bool DS2482::search(char *address) {
                 uint8_t comp_id = status & DS2482_STATUS_TSB;
                 direction = status & DS2482_STATUS_DIR;
 
-                if (id && comp_id) {
+                if (id && comp_id) {  // no devices on the bus
                     return false;
 
                 } else {
@@ -307,48 +320,49 @@ bool DS2482::search(char *address) {
                 }
 
                 if (direction) {
-                    searchAddress[searchByte] |= searchBit;
+                    _search_address[searchByte] |= searchBit;
 
                 } else {
-                    searchAddress[searchByte] &= ~searchBit;
+                    _search_address[searchByte] &= ~searchBit;
                 }
             }
         }
 
-        searchLastDiscrepancy = last_zero;
+        _last_discrepancy = last_zero;
 
-        if (!last_zero) {
-            searchLastDeviceFlag = 1;
+        if (last_zero == 0) {
+            _last_device_flag = true;
         }
 
-        memcpy(address, searchAddress, sizeof(searchAddress));
-
-        return true;
+        if (crc8(_search_address, sizeof(_search_address))) {
+            memcpy(address, _search_address, sizeof(_search_address));
+            return true;
+        }
     }
 
     return false;
 }
 
 void DS2482::reset_search() {
-    searchLastDiscrepancy = 0;
-    searchLastDeviceFlag = 0;
+    _last_discrepancy = 0;
+    _last_device_flag = false;
 
-    memset(searchAddress, 0, sizeof(searchAddress));
+    memset(_search_address, 0, sizeof(_search_address));
 }
 
 bool DS2482::select(const char rom[8]) {
     if (write(WIRE_COMMAND_SELECT)) {
-        return device_write_bytes(rom, 8);
+        return write_bytes(rom, 8);
     }
 
     return false;
 }
 
 char DS2482::wait_busy() {
-    char status = UCHAR_MAX;
     bool cb_sent[2] = {false, false};
+    char status = UCHAR_MAX;
 
-    for (char i = 0; i < 20; i++) {
+    for (uint16_t i = 0; i < 500; i++) {
         if (set_read_pointer(DS2482_POINTER_STATUS)) {
             status = device_read();
 
@@ -386,7 +400,8 @@ char DS2482::wait_busy() {
             return UCHAR_MAX;
         }
 
-        ThisThread::sleep_for(1);
+        // ThisThread::sleep_for(1);
+        wait_us(20);
     }
 
     return status;
@@ -399,4 +414,25 @@ void DS2482::attach(Callback<void(uint8_t)> function) {
     } else {
         _callback = NULL;
     }
+}
+
+char DS2482::get_crc8(const char* data, uint8_t len) {
+    MbedCRC<0x31, 8> ct(0, 0, true, true);
+    uint32_t crc = 0;
+
+    if (ct.compute((void *)data, len, &crc) == 0) {
+        return static_cast<char>(crc);
+    }
+
+    return UCHAR_MAX;
+}
+
+bool DS2482::crc8(const char* data, uint8_t len) {
+    char crc = get_crc8(data, len - 1);
+
+    if (data[len - 1] == crc) {
+        return true;
+    }
+
+    return false;
 }
