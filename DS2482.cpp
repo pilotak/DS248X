@@ -149,18 +149,14 @@ bool DS2482::select_channel(char channel) {
     char buf[2];
     char read_channel = (channel | (~channel) << 3) & ~(1 << 6);
 
-    channel |= (~channel) << 4;
+    if (channel < 8) {
+        channel |= (~channel) << 4;
 
-    buf[0] = DS2482_COMMAND_CHSL;
-    buf[1] = channel;
+        buf[0] = DS2482_COMMAND_CHSL;
+        buf[1] = channel;
 
-    if (device_write_bytes(buf, 2)) {
-        wait_busy();
-
-        if (device_read() == read_channel) {
-            _config = get_config();
-
-            if (_config != UCHAR_MAX) {
+        if (device_write_bytes(buf, 2)) {
+            if (device_read() == read_channel) {
                 return true;
             }
         }
