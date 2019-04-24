@@ -21,7 +21,39 @@ int main() {
 }
 ```
 
-## Example reading DS18B20
+## Example searching the bus
+```cpp
+#include "mbed.h"
+#include "DS2482.h"
+
+I2C i2c(PB_7, PB_6);
+DS2482 oneWire(&i2c);
+
+int main() {
+    char rom[8];
+
+    if (oneWire.init()) {
+        oneWire.set_config(DS2482::ActivePullUp);
+
+        while (oneWire.search(rom)) {
+            printf("Device on the bus: ");
+
+            for (int i = 0; i < 8; ++i) {
+                printf("%02X ", rom[i]);
+            }
+
+            printf("\n");
+        }
+
+    } else {
+        printf("Could not init\n");
+    }
+
+    return 0;
+}
+```
+
+## Example reading DS18B20 at channel 6
 ```cpp
 #include "mbed.h"
 #include "DS2482.h"
