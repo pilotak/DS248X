@@ -157,6 +157,7 @@ bool DS2482::select_channel(char channel) {
 
         if (device_write_bytes(buf, 2)) {
             if (device_read() == read_channel) {
+                reset();
                 return true;
             }
         }
