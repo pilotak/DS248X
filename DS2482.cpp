@@ -265,7 +265,7 @@ bool DS2482::write_bytes(const char* data, uint16_t len) {
 bool DS2482::skip() {
     wait_busy();
 
-    return write(WIRE_COMMAND_SKIP);
+    return write(DS2482_WIRE_COMMAND_SKIP);
 }
 
 bool DS2482::search(char *address) {
@@ -281,7 +281,7 @@ bool DS2482::search(char *address) {
 
         wait_busy();
 
-        write(WIRE_COMMAND_SEARCH);
+        write(DS2482_WIRE_COMMAND_SEARCH);
 
         for (uint8_t i = 0; i < 64; i++) {
             uint8_t searchByte = i >> 3;
@@ -347,7 +347,7 @@ void DS2482::reset_search() {
 }
 
 bool DS2482::select(const char rom[8]) {
-    if (write(WIRE_COMMAND_SELECT)) {
+    if (write(DS2482_WIRE_COMMAND_SELECT)) {
         return write_bytes(rom, 8);
     }
 
