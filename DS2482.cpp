@@ -50,7 +50,11 @@ DS2482::~DS2482(void) {
     }
 }
 
-bool DS2482::init() {
+bool DS2482::init(I2C * i2c_obj) {
+    if (i2c_obj != NULL) {
+        _i2c = i2c_obj;
+    }
+
     if (_i2c) {
         if (wait_busy() != UCHAR_MAX) {
             _config = get_config();

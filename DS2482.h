@@ -75,7 +75,7 @@ class DS2482 {
   virtual ~DS2482(void);
 
   // Device commands
-  bool init();
+  bool init(I2C * i2c_obj = NULL);
   void device_reset();
   char device_read();
   bool device_read_bytes(char* data, uint16_t len);
