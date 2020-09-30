@@ -351,11 +351,11 @@ bool DS248X::search(char *rom) {
     }
 
     // compare CRC
-    if (!crc8(rom, sizeof(rom))) {
+    if (!crc8(rom, 8)) {
         return false;
     }
 
-    tr_info("Found device: %s", tr_array(reinterpret_cast<uint8_t *>(rom), sizeof(rom)));
+    tr_info("Found device: %s", tr_array(reinterpret_cast<uint8_t *>(rom), 8));
     return true;
 }
 
