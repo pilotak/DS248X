@@ -1,7 +1,7 @@
 /*
 MIT License
 
-Copyright (c) 2019 Pavel Slama
+Copyright (c) 2020 Pavel Slama
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -25,241 +25,138 @@ SOFTWARE.
 #include "mbed.h"
 #include "DS2482.h"
 
-DS2482::DS2482(I2C * i2c_obj, char address):
-    _address(address),
-    _config(UCHAR_MAX),
-    _callback(NULL),
-    _last_discrepancy(0),
-    _last_device_flag(false) {
-    _i2c = i2c_obj;
+DS2482::DS2482(uint8_t address):
+    _address(address) {
 }
 
-DS2482::DS2482(PinName sda, PinName scl, char address, uint32_t frequency):
-    _address(address),
-    _config(UCHAR_MAX),
-    _callback(NULL),
-    _last_discrepancy(0),
-    _last_device_flag(false) {
+DS2482::DS2482(PinName sda, PinName scl, uint8_t address, uint32_t frequency):
+    _address(address) {
     _i2c = new (_i2c_buffer) I2C(sda, scl);
     _i2c->frequency(frequency);
 }
 
 DS2482::~DS2482(void) {
-    if (_i2c == reinterpret_cast<I2C*>(_i2c_buffer)) {
+    if (_i2c == reinterpret_cast<I2C *>(_i2c_buffer)) {
         _i2c->~I2C();
     }
 }
 
-bool DS2482::init(I2C * i2c_obj) {
-    if (i2c_obj != NULL) {
+bool DS2482::init(I2C *i2c_obj) {
+    if (i2c_obj != nullptr) {
         _i2c = i2c_obj;
     }
 
-    if (_i2c) {
-        if (wait_busy() != UCHAR_MAX) {
-            _config = get_config();
+    MBED_ASSERT(_i2c);
 
-            if (_config != UCHAR_MAX) {
-                return true;
-            }
-        }
-    }
-
-    return false;
-}
-
-void DS2482::device_reset() {
-    device_write(DS2482_COMMAND_RESET);
-}
-
-char DS2482::device_read() {
-    char buf[1];
-
-    if (device_read_bytes(buf, 1)) {
-        return buf[0];
-    }
-
-    return UCHAR_MAX;
-}
-
-bool DS2482::device_read_bytes(char* data, uint16_t len) {
-    int32_t ack;
-
-    _i2c->lock();
-    ack = _i2c->read(_address, data, len);
-    _i2c->unlock();
-
-    if (ack == 0) {
-        return true;
-    }
-
-    return false;
-}
-
-bool DS2482::device_write(char data) {
-    return device_write_bytes(&data, 1);
-}
-
-bool DS2482::device_write_bytes(const char* data, uint16_t len) {
-    int32_t ack;
-
-    _i2c->lock();
-    ack = _i2c->write(_address, data, len);
-    _i2c->unlock();
-
-    if (ack == 0) {
-        return true;
-    }
-
-    return false;
-}
-
-char DS2482::get_config() {
-    if (set_read_pointer(DS2482_POINTER_CONFIG)) {
-        char config = device_read();
-
-        if ((config & DS2482_CONFIG_PPM) == 0) {
-            return config;
-        }
-    }
-
-    return UCHAR_MAX;
-}
-
-bool DS2482::send_config() {
-    char buf[2];
-
-    buf[0] = DS2482_COMMAND_WRITECONFIG;
-    buf[1] = _config | (~_config) << 4;
-
-    if (device_write_bytes(buf, 2)) {
-        return true;
-    }
-
-    return false;
-}
-
-bool DS2482::set_config(DS2482_config type) {
-    _config |= type;
-    return send_config();
-}
-
-bool DS2482::clear_config(DS2482_config type) {
-    _config &= ~(type);
-    return send_config();
-}
-
-bool DS2482::select_channel(char channel) {
-    char buf[2];
-    char read_channel = (channel | (~channel) << 3) & ~(1 << 6);
-
-    if (channel < 8) {
-        channel |= (~channel) << 4;
-
-        buf[0] = DS2482_COMMAND_CHSL;
-        buf[1] = channel;
-
-        if (device_write_bytes(buf, 2)) {
-            if (device_read() == read_channel) {
-                reset_search();
-                reset();
-                return true;
-            }
-        }
-    }
-
-    return false;
-}
-
-bool DS2482::set_read_pointer(char read_pointer) {
-    char buf[2];
-    buf[0] = DS2482_COMMAND_SRP;
-    buf[1] = read_pointer;
-
-    if (device_write_bytes(buf, 2)) {
-        return true;
-    }
-
-    return false;
-}
-
-bool DS2482::reset() {
-    char status = UCHAR_MAX;
-
-    wait_busy();
-
-    bool spu = _config & DS2482_CONFIG_SPU;
-
-    if (spu && !clear_config(StrongPullUp)) {
+    if (!waitBusy()) {
         return false;
     }
 
-    wait_busy();
-
-    if (device_write(DS2482_COMMAND_RESETWIRE)) {
-        status = wait_busy();
-
-        if (status != UCHAR_MAX) {
-            if (spu && !set_config(StrongPullUp)) {
-                return false;
-            }
-
-            return (status & DS2482_STATUS_PPD);
-        }
+    if (!getConfig()) {
+        tr_error("Could not get config");
+        return false;
     }
 
-    return false;
+    tr_info("Init successful, config: %02X", _config);
+    return true;
 }
 
-char DS2482::read() {
-    wait_busy();
+bool DS2482::setConfig(ds2482_config_t type) {
+    _config |= type;
+    return sendConfig();
+}
 
-    if (device_write(DS2482_COMMAND_READBYTE)) {
-        wait_busy();
-        set_read_pointer(DS2482_POINTER_DATA);
-        return device_read();
+bool DS2482::clearConfig(ds2482_config_t type) {
+    _config &= ~(type);
+    return sendConfig();
+}
+
+bool DS2482::selectChannel(uint8_t channel) {
+    char buf[2];
+    uint8_t read_channel = (channel | (~channel) << 3) & ~(1 << 6);
+
+    if (channel >= 8) {
+        tr_error("Invalid channel: %u", channel);
+        return false;
     }
 
-    return UCHAR_MAX;
+    channel |= (~channel) << 4;
+
+    buf[0] = (char)CMD_CHSL;
+    buf[1] = channel;
+
+    if (!deviceWriteBytes(buf, sizeof(buf))) {
+        return false;
+    }
+
+    // TODO
+    /*if (!deviceReadBytes(buf)) {
+        return false;
+    }*/
+
+    if (buf[0] != read_channel) {
+        tr_error("Channel not selected");
+        return false;
+    }
+
+    resetSearch();
+
+    tr_info("Channel set to: %u", channel);
+    return true;
 }
 
-bool DS2482::read_bit() {
-    write_bit(1);
-    uint8_t status = wait_busy();
+bool DS2482::deviceReset() {
+    char buf[1];
+    buf[0] = (char)CMD_DRST;
 
-    return status & DS2482_STATUS_SBR ? 1 : 0;
-}
+    tr_info("Device reset");
 
-bool DS2482::read_bytes(char* data, uint16_t len) {
-    for (uint16_t i = 0; i < len; ++i) {
-        data[i] = read();
+    if (!deviceWriteBytes(buf, sizeof(buf))) {
+        return false;
     }
 
     return true;
 }
 
-bool DS2482::write_bit(bool bit) {
-    char buf[2];
-    wait_busy();
+char DS2482::computeCRC(const char *data, size_t len) {
+    MbedCRC<0x31, 8> ct(0, 0, true, true);
+    uint32_t crc = 0;
 
-    buf[0] = DS2482_COMMAND_SINGLEBIT;
-    buf[1] = bit ? 0x80 : 0x00;
+    if (ct.compute(data, len, &crc) == 0) {
+        return static_cast<char>(crc);
+    }
 
-    return device_write_bytes(buf, 2);
+    return UCHAR_MAX;
 }
 
-bool DS2482::write(char data) {
-    char buf[2];
-    buf[0] = DS2482_COMMAND_WRITEBYTE;
-    buf[1] = data;
+bool DS2482::crc8(const char *data, size_t len) {
+    char crc = computeCRC(data, len - 1);
 
-    wait_busy();
+    if (data[len - 1] == crc) {
+        tr_debug("Checksum OK");
+        return true;
+    }
 
-    return device_write_bytes(buf, 2);
+    tr_error("Checksum failed");
+    return false;
 }
 
-bool DS2482::write_bytes(const char* data, uint16_t len) {
-    for (uint16_t i = 0; i < len; ++i) {
+void DS2482::attach(Callback<void(char)> function) {
+    if (function) {
+        _callback = function;
+
+    } else {
+        _callback = nullptr;
+    }
+}
+
+bool DS2482::writeBytes(const char *data, size_t len) {
+    if (data == nullptr || len == 0) {
+        tr_error("Invalid input data");
+        return false;
+    }
+
+    for (size_t i = 0; i < len; ++i) {
         if (!write(data[i])) {
             return false;
         }
@@ -268,173 +165,375 @@ bool DS2482::write_bytes(const char* data, uint16_t len) {
     return true;
 }
 
-bool DS2482::skip() {
-    wait_busy();
+bool DS2482::readBytes(char *buffer, size_t len) {
+    if (buffer == nullptr || len == 0) {
+        tr_error("Invalid input data");
+        return false;
+    }
 
-    return write(DS2482_WIRE_COMMAND_SKIP);
-}
+    char buf[1];
 
-bool DS2482::search(char *address) {
-    uint8_t direction;
-    uint8_t last_zero = 0;
-    char buf[2];
-
-    if (!_last_device_flag) {
-        if (!reset()) {
-            reset_search();
+    for (size_t i = 0; i < len; ++i) {
+        if (!read(buf)) {
             return false;
         }
 
-        wait_busy();
+        buffer[i] = buf[0];
+    }
 
-        write(DS2482_WIRE_COMMAND_SEARCH);
+    return true;
+}
 
-        for (uint8_t i = 0; i < 64; i++) {
-            uint8_t searchByte = i >> 3;
-            uint8_t searchBit = 1 << (i & 7);
+bool DS2482::writeBit(bool bit) {
+    char buf[2];
 
-            if (i < _last_discrepancy) {
-                direction = _search_address[searchByte] & searchBit;
+    if (!waitBusy()) {
+        return false;
+    }
 
-            } else {
-                direction = i == _last_discrepancy;
-            }
+    buf[0] = (char)CMD_1WSB;
+    buf[1] = bit ? 0x80 : 0x00;
 
-            wait_busy();
+    return deviceWriteBytes(buf, sizeof(buf));
+}
 
-            buf[0] = DS2482_COMMAND_TRIPLET;
-            buf[1] = direction ? 0x80 : 0x00;
+bool DS2482::readBit() {
+    char buf[1];
 
-            if (device_write_bytes(buf, 2)) {
-                uint8_t status = wait_busy();
+    if (!writeBit(true)) {
+        return false;
+    }
 
-                uint8_t id = status & DS2482_STATUS_SBR;
-                uint8_t comp_id = status & DS2482_STATUS_TSB;
-                direction = status & DS2482_STATUS_DIR;
+    if (!waitBusy(buf)) {
+        return false;
+    }
 
-                if (id && comp_id) {  // no devices on the bus
-                    return false;
+    return buf[0] & DS2482_STATUS_SBR;
+}
 
-                } else {
-                    if (!id && !comp_id && !direction) {
-                        last_zero = i;
-                    }
-                }
+bool DS2482::reset() {
+    char buf[1];
 
-                if (direction) {
-                    _search_address[searchByte] |= searchBit;
+    tr_info("Reset");
 
-                } else {
-                    _search_address[searchByte] &= ~searchBit;
-                }
-            }
+    if (!waitBusy()) {
+        return false;
+    }
+
+    bool spu = _config & DS2482_CONFIG_SPU;
+
+    if (spu && !clearConfig(StrongPullUp)) {
+        return false;
+    }
+
+    if (!waitBusy()) {
+        return false;
+    }
+
+    buf[0] = (char)CMD_1WRS;
+
+    if (!deviceWriteBytes(buf, 1)) {
+        return false;
+    }
+
+    if (!waitBusy(buf)) {
+        return false;
+    }
+
+    if (spu && !setConfig(StrongPullUp)) {
+        return false;
+    }
+
+    return (buf[0] & DS2482_STATUS_PPD);
+}
+
+bool DS2482::skip() {
+    tr_info("Skip");
+
+    if (!waitBusy()) {
+        return false;
+    }
+
+    return write(WIRE_COMMAND_SKIP);
+}
+
+bool DS2482::select(const char *rom) {
+    tr_info("Selecting: %s", tr_array(reinterpret_cast<const uint8_t *>(rom), 8));
+
+    if (!write(WIRE_COMMAND_SELECT)) {
+        return false;
+    }
+
+    return writeBytes(rom, 8);
+}
+
+bool DS2482::search(char *address) {
+    char buf[2];
+    uint8_t rom_byte_counter = 0;
+    uint8_t id_bit_counter = 1;
+    uint8_t last_zero = 0;
+    uint8_t rom_byte_mask = 1;
+    bool id_bit;
+    bool cmp_id_bit;
+    bool search_direction;
+
+    if (_last_device_flag || !reset()) {
+        tr_warning("No %sdevices on the bus", _last_device_flag ? "more " : "");
+        resetSearch();
+        return false;
+    }
+
+    if (!write(WIRE_COMMAND_SEARCH)) {
+        return false;
+    }
+
+    if (!waitBusy()) {
+        resetSearch();
+        return false;
+    }
+
+    while (rom_byte_counter < 8) {
+        if (id_bit_counter < _last_discrepancy) {
+            search_direction = ((_search_address[rom_byte_counter] & rom_byte_mask) > 0);
+
+        } else {
+            search_direction = (id_bit_counter == _last_discrepancy);
         }
 
-        _last_discrepancy = last_zero;
+        buf[0] = (char)CMD_1WT;
+        buf[1] = search_direction ? 0x80 : 0x00;
 
-        if (last_zero == 0) {
-            _last_device_flag = true;
+        if (!deviceWriteBytes(buf, 2)) {
+            resetSearch();
+            return false;
         }
 
-        if (crc8(_search_address, sizeof(_search_address))) {
-            memcpy(address, _search_address, sizeof(_search_address));
-            return true;
+        if (!waitBusy(buf)) {
+            resetSearch();
+            return false;
+        }
+
+        id_bit = (buf[0] & DS2482_STATUS_SBR);
+        cmp_id_bit = (buf[0] & DS2482_STATUS_TSB);
+        search_direction = (buf[0] & DS2482_STATUS_DIR);
+
+        // check for no devices
+        if (id_bit && cmp_id_bit) {
+            resetSearch();
+            return false;
+        }
+
+        if (!id_bit && !cmp_id_bit && !search_direction) {
+            last_zero = id_bit_counter;
+        }
+
+        if (search_direction) {
+            _search_address[rom_byte_counter] |= rom_byte_mask;
+
+        } else {
+            _search_address[rom_byte_counter] &= ~rom_byte_mask;
+        }
+
+        id_bit_counter++;
+        rom_byte_mask <<= 1;
+
+        if (rom_byte_mask == 0) {
+            rom_byte_counter++;
+            rom_byte_mask = 1;
         }
     }
 
-    return false;
+    _last_discrepancy = last_zero;
+
+    // check for last device
+    if (_last_discrepancy == 0) {
+        _last_device_flag = true;
+    }
+
+    // compare CRC
+    if (!crc8(_search_address, sizeof(_search_address))) {
+        return false;
+    }
+
+    memcpy(address, _search_address, sizeof(_search_address));
+
+    tr_info("Found device: %s", tr_array(reinterpret_cast<uint8_t *>(_search_address), sizeof(_search_address)));
+    return true;
 }
 
-void DS2482::reset_search() {
+void DS2482::resetSearch() {
+    tr_debug("Seach reset");
+
     _last_discrepancy = 0;
     _last_device_flag = false;
 
     memset(_search_address, 0, sizeof(_search_address));
 }
 
-bool DS2482::select(const char rom[8]) {
-    if (write(DS2482_WIRE_COMMAND_SELECT)) {
-        return write_bytes(rom, 8);
+bool DS2482::deviceWriteBytes(const char *data, size_t len) {
+    int32_t ack;
+
+    tr_debug("Sending[%u]: %s", len, tr_array(reinterpret_cast<const uint8_t *>(data), len));
+
+    _i2c->lock();
+    ack = _i2c->write(_address, data, len);
+    _i2c->unlock();
+
+    if (ack != 0) {
+        tr_error("Error write");
+        return false;
     }
 
-    return false;
+    return true;
 }
 
-char DS2482::wait_busy() {
+bool DS2482::deviceReadBytes(ds2482_pointer_t address, char *buffer, size_t len) {
+    int32_t ack;
+
+    if (!setReadPointer(address)) {
+        return false;
+    }
+
+    _i2c->lock();
+    ack = _i2c->read(_address, buffer, len);
+    _i2c->unlock();
+
+    if (ack != 0) {
+        tr_error("Error read");
+        return false;
+    }
+
+    tr_debug("Read:[%u]: %s", len, tr_array(reinterpret_cast<uint8_t *>(buffer), len));
+
+    return true;
+}
+
+bool DS2482::waitBusy(char *status) {
     bool cb_sent[2] = {false, false};
-    char status = UCHAR_MAX;
+    char buf[1];
 
-    for (uint16_t i = 0; i < 500; i++) {
-        if (set_read_pointer(DS2482_POINTER_STATUS)) {
-            status = device_read();
-
-            // debug("Status: %c%c%c%c%c%c%c%c\n",
-            //       (status & 0x80 ? '1' : '0'),
-            //       (status & 0x40 ? '1' : '0'),
-            //       (status & 0x20 ? '1' : '0'),
-            //       (status & 0x10 ? '1' : '0'),
-            //       (status & 0x08 ? '1' : '0'),
-            //       (status & 0x04 ? '1' : '0'),
-            //       (status & 0x02 ? '1' : '0'),
-            //       (status & 0x01 ? '1' : '0'));
-
-            if ((status & DS2482_STATUS_SD) && !cb_sent[0]) {
-                if (_callback) {
-                    _callback.call(DS2482_STATUS_SD);
-                }
-
-                cb_sent[0] = true;
-
-            } else if ((status & DS2482_STATUS_RST) && !cb_sent[1]) {
-                if (_callback) {
-                    _callback.call(DS2482_STATUS_RST);
-                }
-
-                cb_sent[1] = true;
-            }
-
-            if (!(status & DS2482_STATUS_BUSY)) {
-                // debug("1-Wire ready\n");
-                break;
-            }
-
-        } else {
-            return UCHAR_MAX;
+    for (auto i = 0; i < MBED_CONF_DS248X_RETRY; i++) {
+        if (!deviceReadBytes(POINTER_STATUS, buf, sizeof(buf))) {
+            return false;
         }
 
-        // ThisThread::sleep_for(1);
-        wait_us(20);
+        // tr_debug("Status: %c%c%c%c%c%c%c%c",
+        //       (buf[0] & 0x80 ? '1' : '0'),
+        //       (buf[0] & 0x40 ? '1' : '0'),
+        //       (buf[0] & 0x20 ? '1' : '0'),
+        //       (buf[0] & 0x10 ? '1' : '0'),
+        //       (buf[0] & 0x08 ? '1' : '0'),
+        //       (buf[0] & 0x04 ? '1' : '0'),
+        //       (buf[0] & 0x02 ? '1' : '0'),
+        //       (buf[0] & 0x01 ? '1' : '0'));
+
+        if ((buf[0] & DS2482_STATUS_SD) && !cb_sent[0]) {
+            tr_warning("Short condition detected");
+
+            if (_callback) {
+                _callback.call(DS2482_STATUS_SD);
+            }
+
+            cb_sent[0] = true;
+
+        } else if ((buf[0] & DS2482_STATUS_RST) && !cb_sent[1]) {
+            tr_warning("Short condition detected");
+
+            if (_callback) {
+                _callback.call(DS2482_STATUS_RST);
+            }
+
+            cb_sent[1] = true;
+        }
+
+        if (!(buf[0] & DS2482_STATUS_BUSY)) {
+            tr_debug("1-Wire ready");
+
+            if (status) {
+                memcpy(status, buf, sizeof(buf));
+            }
+
+            return true;
+        }
+
+        ThisThread::sleep_for(1ms);
     }
 
-    return status;
-}
+    tr_error("Device not ready");
 
-void DS2482::attach(Callback<void(uint8_t)> function) {
-    if (function) {
-        _callback = function;
-
-    } else {
-        _callback = NULL;
-    }
-}
-
-char DS2482::get_crc8(const char* data, uint8_t len) {
-    MbedCRC<0x31, 8> ct(0, 0, true, true);
-    uint32_t crc = 0;
-
-    if (ct.compute((void *)data, len, &crc) == 0) {
-        return static_cast<char>(crc);
-    }
-
-    return UCHAR_MAX;
-}
-
-bool DS2482::crc8(const char* data, uint8_t len) {
-    char crc = get_crc8(data, len - 1);
-
-    if (data[len - 1] == crc) {
-        return true;
-    }
-
+    deviceReset();
     return false;
+}
+
+bool DS2482::sendConfig() {
+    char buf[2];
+
+    buf[0] = (char)CMD_WCFG;
+    buf[1] = _config | (~_config) << 4;
+
+    tr_info("Sending config: %02X", _config);
+
+    if (!deviceWriteBytes(buf, sizeof(buf))) {
+        return false;
+    }
+
+    return true;
+}
+
+bool DS2482::getConfig() {
+    char buf[1];
+
+    if (!deviceReadBytes(POINTER_CONFIG, buf, sizeof(buf))) {
+        return false;
+    }
+
+    _config = buf[0];
+    tr_info("Got config: %02X", _config);
+
+    return true;
+}
+
+bool DS2482::write(char data) {
+    char buf[2];
+    buf[0] = (char)CMD_1WWB;
+    buf[1] = data;
+
+    if (!waitBusy()) {
+        return false;
+    }
+
+    return deviceWriteBytes(buf, sizeof(buf));
+}
+
+bool DS2482::read(char *buffer) {
+    if (!waitBusy()) {
+        return false;
+    }
+
+    buffer[0] = (char)CMD_1WRB;
+
+    if (!deviceWriteBytes(buffer, 1)) {
+        return false;
+    }
+
+    if (!waitBusy()) {
+        return false;
+    }
+
+    return deviceReadBytes(POINTER_DATA, buffer, 1);
+}
+
+bool DS2482::setReadPointer(ds2482_pointer_t address) {
+    char buf[2];
+    buf[0] = CMD_SRP;
+    buf[1] = (char)address;
+
+    tr_debug("Setting read pointer to: %02X", address);
+
+    if (!deviceWriteBytes(buf, sizeof(buf))) {
+        tr_error("Setting read pointer failed");
+        return false;
+    }
+
+    return true;
 }

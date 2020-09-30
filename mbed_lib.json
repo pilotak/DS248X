@@ -1,0 +1,9 @@
+{
+  "name": "DS248X",
+  "config": {
+    "retry": {
+      "help": "How many times repeat specific calls (1ms interval)",
+      "value": 500
+    }
+  }
+}
