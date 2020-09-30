@@ -1,7 +1,10 @@
-# DS248X
+# 1-Wire library
 [![Framework Badge mbed](https://img.shields.io/badge/framework-mbed-008fbe.svg)](https://os.mbed.com/)
 
-A 1-Wire library using the DS248X (1-Wire Master) for mbed. Supports DS2484 (Single channel), DS2482-100 (Single channel) and DS2482-800 (8-channel).
+Supports following ICs:
+- DS2484 *(single channel)*
+- DS2482-100 *(single channel)*
+- DS2482-800 *(8-channel)*
 
 ## Basic example
 ```cpp
@@ -92,7 +95,7 @@ int main() {
         return 0;
     }
 
-    // comment out you if in parasitic mode
+    // uncomment you if in parasitic mode
     /* if (!oneWire.setConfig(DS248X::StrongPullUp)) {
         debug("Config failed\n");
         return 0;
