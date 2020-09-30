@@ -187,7 +187,7 @@ class DS2482 {
     /**
      * @brief Search for device on 1-wire bus
      *
-     * @param rom place to put the unique address of device
+     * @param rom place to put the unique address of device (8 bytes)
      * @return true if successful, otherwise false
      */
     bool search(char *rom);
@@ -271,7 +271,6 @@ class DS2482 {
     char _config = UCHAR_MAX;
     Callback<void(char)> _callback = nullptr;
 
-    char _search_address[8];
     uint8_t _last_discrepancy = 0;
     bool _last_device_flag = false;
 

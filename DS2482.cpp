@@ -267,7 +267,7 @@ bool DS2482::select(const char *rom) {
     return writeBytes(rom, 8);
 }
 
-bool DS2482::search(char *address) {
+bool DS2482::search(char *rom) {
     char buf[2];
     uint8_t rom_byte_counter = 0;
     uint8_t id_bit_counter = 1;
@@ -294,7 +294,7 @@ bool DS2482::search(char *address) {
 
     while (rom_byte_counter < 8) {
         if (id_bit_counter < _last_discrepancy) {
-            search_direction = ((_search_address[rom_byte_counter] & rom_byte_mask) > 0);
+            search_direction = ((rom[rom_byte_counter] & rom_byte_mask) > 0);
 
         } else {
             search_direction = (id_bit_counter == _last_discrepancy);
@@ -328,10 +328,10 @@ bool DS2482::search(char *address) {
         }
 
         if (search_direction) {
-            _search_address[rom_byte_counter] |= rom_byte_mask;
+            rom[rom_byte_counter] |= rom_byte_mask;
 
         } else {
-            _search_address[rom_byte_counter] &= ~rom_byte_mask;
+            rom[rom_byte_counter] &= ~rom_byte_mask;
         }
 
         id_bit_counter++;
@@ -351,13 +351,11 @@ bool DS2482::search(char *address) {
     }
 
     // compare CRC
-    if (!crc8(_search_address, sizeof(_search_address))) {
+    if (!crc8(rom, sizeof(rom))) {
         return false;
     }
 
-    memcpy(address, _search_address, sizeof(_search_address));
-
-    tr_info("Found device: %s", tr_array(reinterpret_cast<uint8_t *>(_search_address), sizeof(_search_address)));
+    tr_info("Found device: %s", tr_array(reinterpret_cast<uint8_t *>(rom), sizeof(rom)));
     return true;
 }
 
@@ -366,8 +364,6 @@ void DS2482::resetSearch() {
 
     _last_discrepancy = 0;
     _last_device_flag = false;
-
-    memset(_search_address, 0, sizeof(_search_address));
 }
 
 bool DS2482::deviceWriteBytes(const char *data, size_t len) {
@@ -409,7 +405,7 @@ bool DS2482::deviceReadBytes(ds2482_pointer_t address, char *buffer, size_t len)
 }
 
 bool DS2482::waitBusy(char *status) {
-    bool cb_sent[2] = {false, false};
+    static bool cb_sent[2] = {false, false};
     char buf[1];
 
     for (auto i = 0; i < MBED_CONF_DS248X_RETRY; i++) {
@@ -427,23 +423,34 @@ bool DS2482::waitBusy(char *status) {
         //       (buf[0] & 0x02 ? '1' : '0'),
         //       (buf[0] & 0x01 ? '1' : '0'));
 
-        if ((buf[0] & DS2482_STATUS_SD) && !cb_sent[0]) {
-            tr_warning("Short condition detected");
+        if (buf[0] & DS2482_STATUS_SD) {
+            if (!cb_sent[0]) {
+                tr_warning("Short condition detected");
 
-            if (_callback) {
-                _callback.call(DS2482_STATUS_SD);
+                if (_callback) {
+                    _callback.call(DS2482_STATUS_SD);
+                }
+
+                cb_sent[0] = true;
             }
 
-            cb_sent[0] = true;
+        } else {
+            cb_sent[0] = false;
+        }
 
-        } else if ((buf[0] & DS2482_STATUS_RST) && !cb_sent[1]) {
-            tr_warning("Short condition detected");
+        if (buf[0] & DS2482_STATUS_RST) {
+            if (!cb_sent[1]) {
+                tr_warning("Reset condition detected");
 
-            if (_callback) {
-                _callback.call(DS2482_STATUS_RST);
+                if (_callback) {
+                    _callback.call(DS2482_STATUS_RST);
+                }
+
+                cb_sent[1] = true;
             }
 
-            cb_sent[1] = true;
+        } else {
+            cb_sent[1] = false;
         }
 
         if (!(buf[0] & DS2482_STATUS_BUSY)) {
