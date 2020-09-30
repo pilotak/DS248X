@@ -22,8 +22,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#ifndef DS2482_H
-#define DS2482_H
+#ifndef DS248X_H
+#define DS248X_H
 
 #include <climits>
 #include <chrono>
@@ -35,33 +35,33 @@ using namespace std::chrono;
     #define TRACE_GROUP "WIRE"
 #endif
 
-#define DS2482_DEFAULT_ADDRESS (0x18 << 1)
+#define DS248X_DEFAULT_ADDRESS (0x18 << 1)
 
-#define DS2482_CONFIG_APU (1<<0)
-#define DS2482_CONFIG_PPM (1<<1)
-#define DS2482_CONFIG_SPU (1<<2)
+#define DS248X_CONFIG_APU (1<<0)
+#define DS248X_CONFIG_PPM (1<<1)
+#define DS248X_CONFIG_SPU (1<<2)
 #define DS2484_CONFIG_WS  (1<<3)
 
-#define DS2482_STATUS_BUSY (1<<0)
-#define DS2482_STATUS_PPD  (1<<1) // present detect
-#define DS2482_STATUS_SD   (1<<2)
-#define DS2482_STATUS_LL   (1<<3)
-#define DS2482_STATUS_RST  (1<<4)
-#define DS2482_STATUS_SBR  (1<<5)
-#define DS2482_STATUS_TSB  (1<<6)
-#define DS2482_STATUS_DIR  (1<<7)
+#define DS248X_STATUS_BUSY (1<<0)
+#define DS248X_STATUS_PPD  (1<<1) // present detect
+#define DS248X_STATUS_SD   (1<<2)
+#define DS248X_STATUS_LL   (1<<3)
+#define DS248X_STATUS_RST  (1<<4)
+#define DS248X_STATUS_SBR  (1<<5)
+#define DS248X_STATUS_TSB  (1<<6)
+#define DS248X_STATUS_DIR  (1<<7)
 
-class DS2482 {
+class DS248X {
   public:
     typedef enum {
-        ActivePullUp = DS2482_CONFIG_APU,
-        StrongPullUp = DS2482_CONFIG_SPU,
+        ActivePullUp = DS248X_CONFIG_APU,
+        StrongPullUp = DS248X_CONFIG_SPU,
         OverdriveSpeed = DS2484_CONFIG_WS  // perform reset() after setting this
-    } ds2482_config_t;
+    } ds248x_config_t;
 
-    DS2482(uint8_t address = DS2482_DEFAULT_ADDRESS);
-    DS2482(PinName sda, PinName scl, uint8_t address = DS2482_DEFAULT_ADDRESS, uint32_t frequency = 400000);
-    virtual ~DS2482(void);
+    DS248X(uint8_t address = DS248X_DEFAULT_ADDRESS);
+    DS248X(PinName sda, PinName scl, uint8_t address = DS248X_DEFAULT_ADDRESS, uint32_t frequency = 400000);
+    virtual ~DS248X(void);
 
     /**
     * @brief Initialise the chip
@@ -77,7 +77,7 @@ class DS2482 {
      * @param config configuration type
      * @return true if successful, otherwise false
      */
-    bool setConfig(ds2482_config_t config);
+    bool setConfig(ds248x_config_t config);
 
     /**
      * @brief Clear configuration
@@ -85,10 +85,10 @@ class DS2482 {
      * @param config configuration type
      * @return true if successful, otherwise false
      */
-    bool clearConfig(ds2482_config_t config);
+    bool clearConfig(ds248x_config_t config);
 
     /**
-     * @brief Select channel for DS2482-800 only
+     * @brief Select channel for DS248X-800 only
      *
      * @param channel
      * @return true if successful, otherwise false
@@ -209,19 +209,19 @@ class DS2482 {
         CMD_WCFG = 0xD2, // write configuration
         CMD_SRP  = 0xE1, // set read pointer
         CMD_DRST = 0xF0, // device reset
-    } ds2482_cmd_t;
+    } ds248x_cmd_t;
 
     typedef enum {
         POINTER_CONFIG = 0xC3,
         POINTER_DATA   = 0xE1,
         POINTER_STATUS = 0xF0,
-    } ds2482_pointer_t;
+    } ds248x_pointer_t;
 
     typedef enum {
         WIRE_COMMAND_SELECT = 0x55,
         WIRE_COMMAND_SKIP   = 0xCC,
         WIRE_COMMAND_SEARCH = 0xF0
-    } ds2482_wire_cmd_t;
+    } ds248x_wire_cmd_t;
 
     /**
      * @brief Write data to device
@@ -240,7 +240,7 @@ class DS2482 {
      * @param len size of data to read (make sure it fits into buffer)
      * @return true if successful, otherwise false
      */
-    bool deviceReadBytes(ds2482_pointer_t address, char *buffer, size_t len);
+    bool deviceReadBytes(ds248x_pointer_t address, char *buffer, size_t len);
 
     /**
      * @brief Wait until device not busy
@@ -267,7 +267,7 @@ class DS2482 {
   private:
     I2C *_i2c;
     uint32_t _i2c_buffer[sizeof(I2C) / sizeof(uint32_t)];
-    const char _address = DS2482_DEFAULT_ADDRESS;
+    const char _address = DS248X_DEFAULT_ADDRESS;
     char _config = UCHAR_MAX;
     Callback<void(char)> _callback = nullptr;
 
@@ -296,7 +296,7 @@ class DS2482 {
      * @param address where to read from
      * @return true if successful, otherwise false
      */
-    bool setReadPointer(ds2482_pointer_t address);
+    bool setReadPointer(ds248x_pointer_t address);
 };
 
-#endif  // DS2482_H
+#endif  // DS248X_H
