@@ -89,10 +89,13 @@ bool DS248X::selectChannel(uint8_t channel) {
         return false;
     }
 
-    // TODO
-    /*if (!deviceReadBytes(buf)) {
+    if (!setReadPointer(POINTER_DATA)) {
         return false;
-    }*/
+    }
+
+    if (!deviceReadBytes(buf, 1)) {
+        return false;
+    }
 
     if (buf[0] != read_channel) {
         tr_error("Channel not selected");
@@ -383,12 +386,8 @@ bool DS248X::deviceWriteBytes(const char *data, size_t len) {
     return true;
 }
 
-bool DS248X::deviceReadBytes(ds248x_pointer_t address, char *buffer, size_t len) {
+bool DS248X::deviceReadBytes(char *buffer, size_t len) {
     int32_t ack;
-
-    if (!setReadPointer(address)) {
-        return false;
-    }
 
     _i2c->lock();
     ack = _i2c->read(_address, buffer, len);
@@ -408,8 +407,12 @@ bool DS248X::waitBusy(char *status) {
     static bool cb_sent[2] = {false, false};
     char buf[1];
 
+    if (!setReadPointer(POINTER_STATUS)) {
+        return false;
+    }
+
     for (auto i = 0; i < MBED_CONF_DS248X_RETRY; i++) {
-        if (!deviceReadBytes(POINTER_STATUS, buf, sizeof(buf))) {
+        if (!deviceReadBytes(buf, sizeof(buf))) {
             return false;
         }
 
@@ -490,7 +493,11 @@ bool DS248X::sendConfig() {
 bool DS248X::getConfig() {
     char buf[1];
 
-    if (!deviceReadBytes(POINTER_CONFIG, buf, sizeof(buf))) {
+    if (!setReadPointer(POINTER_CONFIG)) {
+        return false;
+    }
+
+    if (!deviceReadBytes(buf, sizeof(buf))) {
         return false;
     }
 
@@ -527,7 +534,11 @@ bool DS248X::read(char *buffer) {
         return false;
     }
 
-    return deviceReadBytes(POINTER_DATA, buffer, 1);
+    if (!setReadPointer(POINTER_DATA)) {
+        return false;
+    }
+
+    return deviceReadBytes(buffer, 1);
 }
 
 bool DS248X::setReadPointer(ds248x_pointer_t address) {

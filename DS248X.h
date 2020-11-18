@@ -212,6 +212,7 @@ class DS248X {
     } ds248x_cmd_t;
 
     typedef enum {
+        POINTER_NO_PRINTER = 0x00,
         POINTER_CONFIG = 0xC3,
         POINTER_DATA   = 0xE1,
         POINTER_STATUS = 0xF0,
@@ -235,12 +236,11 @@ class DS248X {
     /**
      * @brief Read the data from device
      *
-     * @param address where to read from
      * @param buffer place to put the reading
      * @param len size of data to read (make sure it fits into buffer)
      * @return true if successful, otherwise false
      */
-    bool deviceReadBytes(ds248x_pointer_t address, char *buffer, size_t len);
+    bool deviceReadBytes(char *buffer, size_t len);
 
     /**
      * @brief Wait until device not busy
@@ -263,6 +263,14 @@ class DS248X {
      * @return true if successful, otherwise false
      */
     bool getConfig();
+
+    /**
+     * @brief Set the read pointer from where to read the data
+     *
+     * @param address where to read from
+     * @return true if successful, otherwise false
+     */
+    bool setReadPointer(ds248x_pointer_t address);
 
   private:
     I2C *_i2c;
@@ -289,14 +297,6 @@ class DS248X {
      * @return true if successful, otherwise false
      */
     bool read(char *buffer);
-
-    /**
-     * @brief Set the read pointer from where to read the data
-     *
-     * @param address where to read from
-     * @return true if successful, otherwise false
-     */
-    bool setReadPointer(ds248x_pointer_t address);
 };
 
 #endif  // DS248X_H
