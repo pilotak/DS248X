@@ -89,11 +89,7 @@ bool DS248X::selectChannel(uint8_t channel) {
         return false;
     }
 
-    if (!setReadPointer(POINTER_DATA)) {
-        return false;
-    }
-
-    if (!deviceReadBytes(buf, 1)) {
+    if (!deviceReadBytes(POINTER_DATA, buf, 1)) {
         return false;
     }
 
@@ -373,7 +369,7 @@ bool DS248X::deviceWriteBytes(const char *data, size_t len) {
     int32_t ack;
 
     tr_debug("Sending[%u]: %s", len, tr_array(reinterpret_cast<const uint8_t *>(data), len));
-
+    ThisThread::sleep_for(1ms);
     _i2c->lock();
     ack = _i2c->write(_address, data, len);
     _i2c->unlock();
@@ -386,8 +382,12 @@ bool DS248X::deviceWriteBytes(const char *data, size_t len) {
     return true;
 }
 
-bool DS248X::deviceReadBytes(char *buffer, size_t len) {
+bool DS248X::deviceReadBytes(ds248x_pointer_t address, char *buffer, size_t len) {
     int32_t ack;
+
+    if (!setReadPointer(address)) {
+        return false;
+    }
 
     _i2c->lock();
     ack = _i2c->read(_address, buffer, len);
@@ -407,12 +407,8 @@ bool DS248X::waitBusy(char *status) {
     static bool cb_sent[2] = {false, false};
     char buf[1];
 
-    if (!setReadPointer(POINTER_STATUS)) {
-        return false;
-    }
-
     for (auto i = 0; i < MBED_CONF_DS248X_RETRY; i++) {
-        if (!deviceReadBytes(buf, sizeof(buf))) {
+        if (!deviceReadBytes(POINTER_STATUS, buf, sizeof(buf))) {
             return false;
         }
 
@@ -493,11 +489,7 @@ bool DS248X::sendConfig() {
 bool DS248X::getConfig() {
     char buf[1];
 
-    if (!setReadPointer(POINTER_CONFIG)) {
-        return false;
-    }
-
-    if (!deviceReadBytes(buf, sizeof(buf))) {
+    if (!deviceReadBytes(POINTER_CONFIG, buf, sizeof(buf))) {
         return false;
     }
 
@@ -534,11 +526,7 @@ bool DS248X::read(char *buffer) {
         return false;
     }
 
-    if (!setReadPointer(POINTER_DATA)) {
-        return false;
-    }
-
-    return deviceReadBytes(buffer, 1);
+    return deviceReadBytes(POINTER_DATA, buffer, 1);
 }
 
 bool DS248X::setReadPointer(ds248x_pointer_t address) {
