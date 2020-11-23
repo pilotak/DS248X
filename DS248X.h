@@ -51,6 +51,10 @@ using namespace std::chrono;
 #define DS248X_STATUS_TSB  (1<<6)
 #define DS248X_STATUS_DIR  (1<<7)
 
+#define DS248X_CB_SHORT_CONDITION     1
+#define DS248X_CB_RESET_CONDITION     2
+#define DS248X_CB_DEVICE_RESET_NEEDED 3
+
 class DS248X {
   public:
     typedef enum {

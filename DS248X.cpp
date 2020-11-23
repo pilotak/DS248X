@@ -446,8 +446,12 @@ bool DS248X::waitBusy(char *status) {
     }
 
     if (poll_count >= MBED_CONF_DS248X_POLL_LIMIT) {
-        tr_error("Device not ready");
-        deviceReset();
+        tr_error("Device busy timeout");
+
+        if (_callback) {
+            _callback.call(DS248X_CB_DEVICE_RESET_NEEDED);
+        }
+
         return false;
     }
 
@@ -542,7 +546,7 @@ void DS248X::checkError(char *status) {
             tr_warning("Short condition detected");
 
             if (_callback) {
-                _callback.call(DS248X_STATUS_SD);
+                _callback.call(DS248X_CB_SHORT_CONDITION);
             }
 
             cb_sent[0] = true;
@@ -557,7 +561,7 @@ void DS248X::checkError(char *status) {
             tr_warning("Reset condition detected");
 
             if (_callback) {
-                _callback.call(DS248X_STATUS_RST);
+                _callback.call(DS248X_CB_RESET_CONDITION);
             }
 
             cb_sent[1] = true;

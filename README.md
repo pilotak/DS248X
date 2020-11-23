@@ -32,12 +32,31 @@ int main() {
 
 DS248X oneWire(I2C_SDA, I2C_SCL);
 
+bool oneWireInit() {
+    if (!oneWire.init()) {
+        debug("Init failed\n");
+        return false;
+    }
+
+    if (!oneWire.setConfig(DS248X::ActivePullUp)) {
+        debug("Config failed\n");
+        return false;
+    }
+
+    return true;
+}
+
 void oneWireCb(char error) {
-    if (error & DS248X_STATUS_RST) {
+    if (error & DS248X_CB_RESET_CONDITION) {
         debug("1-Wire reset\n");
 
-    } else if (error & DS248X_STATUS_SD) {
+    } else if (error & DS248X_CB_SHORT_CONDITION) {
         debug("1-Wire short\n");
+
+    }  else if(error & DS248X_CB_DEVICE_RESET_NEEDED){
+        debug("Device reset needed\n");
+        oneWire.deviceReset();
+        oneWireInit();
     }
 }
 
@@ -47,13 +66,7 @@ int main() {
 
     oneWire.attach(oneWireCb);
 
-    if (!oneWire.init()) {
-        debug("Init failed\n");
-        return 0;
-    }
-
-    if (!oneWire.setConfig(DS248X::ActivePullUp)) {
-        debug("Config failed\n");
+    if (!oneWireInit()) {
         return 0;
     }
 
