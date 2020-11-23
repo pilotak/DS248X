@@ -317,9 +317,9 @@ bool DS248X::search(char *rom) {
 
         checkError(buf);
 
-        // check for no devices on 1-Wire
-        if (id_bit && cmp_id_bit) {
-            tr_error("No devices on the bus");
+        // check for no devices on 1-Wire or short
+        if (id_bit && cmp_id_bit || (buf[0] & DS248X_STATUS_SD)) {
+            tr_error("No devices or SHORT on the bus");
             goto END;
         }
 
