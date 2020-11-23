@@ -216,6 +216,8 @@ class DS248X {
      *
      */
     void resetSearch();
+
+    void searchFamily(uint8_t family_code);
   protected:
     typedef enum {
         CMD_1WT  = 0x78, // 1-Wire triplet
@@ -268,6 +270,7 @@ class DS248X {
     uint32_t _i2c_buffer[sizeof(I2C) / sizeof(uint32_t)];
     const char _address = DS248X_DEFAULT_ADDRESS;
     char _config = UCHAR_MAX;
+    char _rom[8] = {0};
     Callback<void(char)> _callback = nullptr;
 
     uint8_t _last_discrepancy = 0;

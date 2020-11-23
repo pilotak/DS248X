@@ -48,6 +48,8 @@ bool DS248X::init(I2C *i2c_obj) {
 
     MBED_ASSERT(_i2c);
 
+    memset(_rom, 0, sizeof(_rom));
+
     if (!getConfig()) {
         tr_error("Could not get config");
         return false;
@@ -278,11 +280,6 @@ bool DS248X::search(char *rom) {
     bool cmp_id_bit = false;
     bool search_direction = false;
 
-    if (rom == nullptr) {
-        tr_error("No ROM pointer");
-        return false;
-    }
-
     if (_last_device_flag || !reset()) {
         tr_warning("No %sdevices on the bus", _last_device_flag ? "more " : "");
         return false;
@@ -294,7 +291,7 @@ bool DS248X::search(char *rom) {
 
     while (rom_byte_counter < 8) {
         if (id_bit_counter < _last_discrepancy) {
-            search_direction = ((rom[rom_byte_counter] & rom_byte_mask) > 0);
+            search_direction = ((_rom[rom_byte_counter] & rom_byte_mask) > 0);
 
         } else {
             search_direction = (id_bit_counter == _last_discrepancy);
@@ -333,10 +330,10 @@ bool DS248X::search(char *rom) {
         }
 
         if (search_direction) {
-            rom[rom_byte_counter] |= rom_byte_mask;
+            _rom[rom_byte_counter] |= rom_byte_mask;
 
         } else {
-            rom[rom_byte_counter] &= (char)~rom_byte_mask;
+            _rom[rom_byte_counter] &= (char)~rom_byte_mask;
         }
 
         id_bit_counter++;
@@ -358,16 +355,20 @@ bool DS248X::search(char *rom) {
         _last_device_flag = true;
     }
 
-    if (rom[0] == 0) {
+    if (_rom[0] == 0) {
         goto END;
     }
 
     // compare CRC
-    if (!crc8(rom, 8)) {
+    if (!crc8(_rom, 8)) {
         return false;
     }
 
-    tr_info("Found device: %s", tr_array(reinterpret_cast<uint8_t *>(rom), 8));
+    if (rom) {
+        memcpy(rom, _rom, sizeof(_rom));
+    }
+
+    tr_info("Found device: %s", tr_array(reinterpret_cast<uint8_t *>(_rom), 8));
     return true;
 
 END:
@@ -381,6 +382,8 @@ void DS248X::resetSearch() {
     _last_discrepancy = 0;
     _last_family_discrepancy = 0;
     _last_device_flag = false;
+
+    memset(_rom, 0, sizeof(_rom));
 }
 
 bool DS248X::deviceWriteBytes(const char *data, size_t len) {
@@ -570,4 +573,13 @@ void DS248X::checkError(char *status) {
     } else {
         cb_sent[1] = false;
     }
+}
+
+void DS248X::searchFamily(uint8_t family_code) {
+    memset(_rom, 0, sizeof(_rom));
+
+    _rom[0] = family_code;
+    _last_discrepancy = 64;
+    _last_family_discrepancy = 0;
+    _last_device_flag = false;
 }
