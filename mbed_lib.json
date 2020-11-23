@@ -1,9 +1,9 @@
 {
   "name": "DS248X",
   "config": {
-    "retry": {
-      "help": "How many times repeat specific calls (1ms interval)",
-      "value": 500
+    "poll_limit": {
+      "help": "The poll limit for status",
+      "value": 200
     }
   }
 }

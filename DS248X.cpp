@@ -424,7 +424,7 @@ bool DS248X::waitBusy(char *status) {
     _i2c->lock();
     _i2c->read(_address, buf, 1);
 
-    while ((buf[0] & DS248X_STATUS_1WB) && ((poll_count++) < MBED_CONF_DS248X_RETRY)) {
+    while ((buf[0] & DS248X_STATUS_1WB) && ((poll_count++) < MBED_CONF_DS248X_POLL_LIMIT)) {
         _i2c->read(_address, buf, 1, buf[0] & DS248X_STATUS_1WB);
 
         // tr_debug("Status: %c%c%c%c%c%c%c%c",
@@ -445,7 +445,7 @@ bool DS248X::waitBusy(char *status) {
         memcpy(status, buf, sizeof(buf));
     }
 
-    if (poll_count >= MBED_CONF_DS248X_RETRY) {
+    if (poll_count >= MBED_CONF_DS248X_POLL_LIMIT) {
         tr_error("Device not ready");
         deviceReset();
         return false;
