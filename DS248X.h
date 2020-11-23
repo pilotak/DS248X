@@ -42,8 +42,8 @@ using namespace std::chrono;
 #define DS248X_CONFIG_SPU (1<<2)
 #define DS2484_CONFIG_WS  (1<<3)
 
-#define DS248X_STATUS_BUSY (1<<0)
-#define DS248X_STATUS_PPD  (1<<1) // present detect
+#define DS248X_STATUS_1WB  (1<<0)
+#define DS248X_STATUS_PPD  (1<<1)
 #define DS248X_STATUS_SD   (1<<2)
 #define DS248X_STATUS_LL   (1<<3)
 #define DS248X_STATUS_RST  (1<<4)
@@ -128,6 +128,21 @@ class DS248X {
     void attach(Callback<void(char)> function);
 
     // 1-Wire commands
+    /**
+     * @brief Write single byte to 1-wire bus
+     *
+     * @param data byte to send
+     * @return true if successful, otherwise false
+     */
+    bool write(char data);
+
+    /**
+     * @brief Read single byte from 1-wire bus
+     *
+     * @param buffer place to put the reading (1 byte)
+     * @return true if successful, otherwise false
+     */
+    bool read(char *buffer);
 
     /**
      * @brief Write multiple bytes to 1-wire bus
@@ -197,7 +212,6 @@ class DS248X {
      *
      */
     void resetSearch();
-
   protected:
     typedef enum {
         CMD_1WT  = 0x78, // 1-Wire triplet
@@ -224,33 +238,6 @@ class DS248X {
     } ds248x_wire_cmd_t;
 
     /**
-     * @brief Write data to device
-     *
-     * @param data a pointer to the data block
-     * @param len the size of the data to be written
-     * @return true if successful, otherwise false
-     */
-    bool deviceWriteBytes(const char *data, size_t len);
-
-    /**
-     * @brief Read the data from device
-     *
-     * @param address where to read from
-     * @param buffer place to put the reading
-     * @param len size of data to read (make sure it fits into buffer)
-     * @return true if successful, otherwise false
-     */
-    bool deviceReadBytes(ds248x_pointer_t address, char *buffer, size_t len);
-
-    /**
-     * @brief Wait until device not busy
-     *
-     * @param status place to put the reading (1 byte)
-     * @return true if successful, otherwise false
-     */
-    bool waitBusy(char *status = nullptr);
-
-    /**
      * @brief Send current config to device
      *
      * @return true if successful, otherwise false
@@ -264,6 +251,14 @@ class DS248X {
      */
     bool getConfig();
 
+    /**
+     * @brief Set the read pointer from where to read the data
+     *
+     * @param address where to read from
+     * @return true if successful, otherwise false
+     */
+    bool setReadPointer(ds248x_pointer_t address);
+
   private:
     I2C *_i2c;
     uint32_t _i2c_buffer[sizeof(I2C) / sizeof(uint32_t)];
@@ -273,30 +268,40 @@ class DS248X {
 
     uint8_t _last_discrepancy = 0;
     bool _last_device_flag = false;
+    uint8_t _last_family_discrepancy = 0;
 
     /**
-     * @brief Write single byte to 1-wire bus
+     * @brief Write data to device
      *
-     * @param data byte to send
+     * @param data a pointer to the data block
+     * @param len the size of the data to be written
      * @return true if successful, otherwise false
      */
-    bool write(char data);
+    bool deviceWriteBytes(const char *data, size_t len = 1);
 
     /**
-     * @brief Read single byte from 1-wire bus
+     * @brief Read the data from device
      *
-     * @param buffer place to put the reading (1 byte)
+     * @param buffer place to put the reading
+     * @param len size of data to read (make sure it fits into buffer)
      * @return true if successful, otherwise false
      */
-    bool read(char *buffer);
+    bool deviceReadBytes(char *buffer, size_t len);
 
     /**
-     * @brief Set the read pointer from where to read the data
+     * @brief Wait until device not busy
      *
-     * @param address where to read from
+     * @param status place to put the reading (1 byte)
      * @return true if successful, otherwise false
      */
-    bool setReadPointer(ds248x_pointer_t address);
+    bool waitBusy(char *status = nullptr);
+
+    /**
+     * @brief Check for reset & short on the bus
+     *
+     * @param status a pointer to the status data
+     */
+    void checkError(char *status);
 };
 
 #endif  // DS248X_H
