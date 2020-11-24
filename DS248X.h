@@ -92,6 +92,13 @@ class DS248X {
     bool clearConfig(ds248x_config_t config);
 
     /**
+     * @brief Load config from device
+     *
+     * @return true if successful, otherwise false
+     */
+    bool loadConfig();
+
+    /**
      * @brief Select channel for DS248X-800 only
      *
      * @param channel
@@ -217,7 +224,16 @@ class DS248X {
      */
     void resetSearch();
 
+
+    /**
+     * @brief Set a family code for the next search.
+     * If on it's on the bus it will be the first
+     * result from search()
+     *
+     * @param family_code
+     */
     void searchFamily(uint8_t family_code);
+
   protected:
     typedef enum {
         CMD_1WT  = 0x78, // 1-Wire triplet
@@ -249,13 +265,6 @@ class DS248X {
      * @return true if successful, otherwise false
      */
     bool sendConfig();
-
-    /**
-     * @brief Get config from device
-     *
-     * @return true if successful, otherwise false
-     */
-    bool getConfig();
 
     /**
      * @brief Set the read pointer from where to read the data

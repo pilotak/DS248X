@@ -50,7 +50,7 @@ bool DS248X::init(I2C *i2c_obj) {
 
     memset(_rom, 0, sizeof(_rom));
 
-    if (!getConfig()) {
+    if (!loadConfig()) {
         tr_error("Could not get config");
         return false;
     }
@@ -479,7 +479,7 @@ bool DS248X::sendConfig() {
     return true;
 }
 
-bool DS248X::getConfig() {
+bool DS248X::loadConfig() {
     char buf[1];
 
     if (!setReadPointer(POINTER_CONFIG)) {
