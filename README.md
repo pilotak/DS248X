@@ -83,6 +83,8 @@ int main() {
             debug("\n");
         }
 
+        oneWire.resetSearch();
+
         debug("Total devices on the bus: %u\n\n", device_count);
         device_count = 0;
 
@@ -125,6 +127,8 @@ int main() {
             ThisThread::sleep_for(1s);
             continue;
         }
+
+        oneWire.resetSearch();
 
         if (rom[0] != 0x10 && rom[0] != 0x28) { // DS18S20 or DS18B20
             debug("Not a temperature sensor\n");
