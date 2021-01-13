@@ -40,7 +40,7 @@ using namespace std::chrono;
 #define DS248X_CONFIG_APU (1<<0)
 #define DS248X_CONFIG_PPM (1<<1)
 #define DS248X_CONFIG_SPU (1<<2)
-#define DS2484_CONFIG_WS  (1<<3)
+#define DS248X_CONFIG_WS  (1<<3)
 
 #define DS248X_STATUS_1WB  (1<<0)
 #define DS248X_STATUS_PPD  (1<<1)
@@ -60,7 +60,7 @@ class DS248X {
     typedef enum {
         ActivePullUp = DS248X_CONFIG_APU,
         StrongPullUp = DS248X_CONFIG_SPU,
-        OverdriveSpeed = DS2484_CONFIG_WS  // perform reset() after setting this
+        OverdriveSpeed = DS248X_CONFIG_WS  // perform reset() after setting this
     } ds248x_config_t;
 
     DS248X(uint8_t address = DS248X_DEFAULT_ADDRESS);
