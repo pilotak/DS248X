@@ -35,6 +35,13 @@ using namespace std::chrono;
     #define TRACE_GROUP "WIRE"
 #endif
 
+#if !defined(MBED_CONF_DS248X_DEBUG)
+    #define tr_error(...) {}
+    #define tr_warning(...) {}
+    #define tr_info(...) {}
+    #define tr_debug(...) {}
+#endif
+
 #define DS248X_DEFAULT_ADDRESS (0x18 << 1)
 
 #define DS248X_CONFIG_APU (1<<0)

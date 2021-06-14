@@ -4,6 +4,10 @@
     "poll_limit": {
       "help": "The poll limit for status",
       "value": 200
+    },
+    "debug": {
+      "help": "Enable/disable debug",
+      "value": null
     }
   }
 }
