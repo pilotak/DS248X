@@ -1,5 +1,5 @@
 {
-  "name": "DS248X",
+  "name": "ds248x",
   "config": {
     "poll_limit": {
       "help": "The poll limit for status",
