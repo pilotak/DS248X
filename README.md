@@ -110,12 +110,6 @@ int main() {
         return 0;
     }
 
-    // uncomment you if in parasitic mode
-    /* if (!oneWire.setConfig(DS248X::StrongPullUp)) {
-        debug("Config failed\n");
-        return 0;
-    } */
-
     if (!oneWire.setConfig(DS248X::ActivePullUp)) {
         debug("Config failed\n");
         return 0;
@@ -147,20 +141,18 @@ int main() {
 
             // start conversion
             data[0] = 0x44;
-            oneWire.writeBytes(data, 1);
+            oneWire.writeBytes(data, 1, true); // use SPU if in parasitic mode
 
             // wait for conversion
             ThisThread::sleep_for(750ms); // default conversion (12bit) time is 750ms
 
-            oneWire.setConfig(DS248X::StrongPullUp);
             oneWire.reset();
             oneWire.select(rom);
 
             // Read Scratchpad
             data[0] = 0xBE;
-            oneWire.writeBytes(data, 1);
-
-            oneWire.readBytes(data, 9);
+            oneWire.writeBytes(data, 1, true); // use SPU if in parasitic mode
+            oneWire.readBytes(data, 9, true); // use SPU if in parasitic mode
 
             if (!oneWire.crc8(data, 9)) {
                 debug("Invalid CRC\n");

@@ -165,14 +165,14 @@ void DS248X::attach(Callback<void(char)> function) {
     }
 }
 
-bool DS248X::writeBytes(const char *data, size_t len) {
+bool DS248X::writeBytes(const char *data, size_t len, bool spu) {
     if (data == nullptr || len == 0) {
         tr_error("Invalid input data");
         return false;
     }
 
     for (size_t i = 0; i < len; i++) {
-        if (!write(data[i])) {
+        if (!write(data[i], spu)) {
             return false;
         }
     }
@@ -180,7 +180,7 @@ bool DS248X::writeBytes(const char *data, size_t len) {
     return true;
 }
 
-bool DS248X::readBytes(char *buffer, size_t len) {
+bool DS248X::readBytes(char *buffer, size_t len, bool spu) {
     if (buffer == nullptr || len == 0) {
         tr_error("Invalid input data");
         return false;
@@ -189,7 +189,7 @@ bool DS248X::readBytes(char *buffer, size_t len) {
     char buf[1];
 
     for (size_t i = 0; i < len; i++) {
-        if (!read(buf)) {
+        if (!read(buf, spu)) {
             return false;
         }
 
@@ -212,8 +212,12 @@ bool DS248X::writeBit(bool bit) {
     return waitBusy();
 }
 
-bool DS248X::readBit() {
+bool DS248X::readBit(bool spu) {
     char buf[1];
+    
+    if (spu && !setConfig(StrongPullUp);) {
+        return false;
+    }
 
     if (!writeBit(true)) {
         return false;
@@ -244,10 +248,6 @@ bool DS248X::reset() {
     }
 
     if (!waitBusy(buf)) {
-        return false;
-    }
-
-    if (spu && !setConfig(StrongPullUp)) {
         return false;
     }
 
@@ -496,10 +496,14 @@ bool DS248X::loadConfig() {
     return true;
 }
 
-bool DS248X::write(char data) {
+bool DS248X::write(char data, bool spu) {
     char buf[2];
     buf[0] = (char)CMD_1WWB;
     buf[1] = data;
+
+    if (spu && !setConfig(StrongPullUp);) {
+        return false;
+    }
 
     if (!deviceWriteBytes(buf, 2)) {
         return false;
@@ -510,6 +514,10 @@ bool DS248X::write(char data) {
 
 bool DS248X::read(char *buffer) {
     buffer[0] = (char)CMD_1WRB;
+
+    if (spu && !setConfig(StrongPullUp);) {
+        return false;
+    }
 
     if (!deviceWriteBytes(buffer)) {
         return false;

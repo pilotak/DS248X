@@ -150,35 +150,39 @@ class DS248X {
      * @brief Write single byte to 1-wire bus
      *
      * @param data byte to send
+     * @param spu whether to assert strong pullup
      * @return true if successful, otherwise false
      */
-    bool write(char data);
+    bool write(char data, bool spu = false);
 
     /**
      * @brief Read single byte from 1-wire bus
      *
      * @param buffer place to put the reading (1 byte)
+     * @param spu whether to assert strong pullup
      * @return true if successful, otherwise false
      */
-    bool read(char *buffer);
+    bool read(char *buffer, bool spu = false);
 
     /**
      * @brief Write multiple bytes to 1-wire bus
      *
      * @param data a pointer to the data block
      * @param len the size of the data to be written
+     * @param spu whether to assert strong pullup
      * @return true if successful, otherwise false
      */
-    bool writeBytes(const char *data, size_t len);
+    bool writeBytes(const char *data, size_t len, bool spu = false);
 
     /**
      * @brief Read multiple bytes from 1-wire bus
      *
      * @param buffer place to put the reading
      * @param len size of data to read (make sure it fits into buffer)
+     * @param spu whether to assert strong pullup
      * @return true if successful, otherwise false
      */
-    bool readBytes(char *buffer, size_t len);
+    bool readBytes(char *buffer, size_t len, bool spu = false);
 
     /**
      * @brief Write bit to 1-wire bus
@@ -191,9 +195,10 @@ class DS248X {
     /**
      * @brief Write bit from 1-wire bus
      *
+     * @param spu whether to assert strong pullup
      * @return result bit
      */
-    bool readBit();
+    bool readBit(bool spu = false);
 
     /**
     * @brief Creates reset condition on 1-wire bus
