@@ -508,7 +508,7 @@ bool DS248X::write(char data, bool spu) {
   return waitBusy();
 }
 
-bool DS248X::read(char *buffer) {
+bool DS248X::read(char *buffer, bool spu) {
   if (spu && !setConfig(StrongPullUp);) {
     return false;
   }
