@@ -1,5 +1,6 @@
 # 1-Wire library
 [![Framework Badge mbed](https://img.shields.io/badge/framework-mbed-008fbe.svg)](https://os.mbed.com/)
+[![build](https://github.com/pilotak/DS248X/actions/workflows/build.yml/badge.svg)](https://github.com/pilotak/DS248X/actions/workflows/build.yml)
 
 Supports following ICs:
 - DS2484 *(single channel)*
