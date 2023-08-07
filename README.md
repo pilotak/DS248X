@@ -28,8 +28,9 @@ int main() {
 
 ## Example searching the bus
 ```cpp
-#include "mbed.h"
 #include "DS248X.h"
+#include "mbed.h"
+
 
 DS248X oneWire(I2C_SDA, I2C_SCL);
 
@@ -54,7 +55,7 @@ void oneWireCb(char error) {
     } else if (error & DS248X_CB_SHORT_CONDITION) {
         debug("1-Wire short\n");
 
-    }  else if(error & DS248X_CB_DEVICE_RESET_NEEDED){
+    } else if (error & DS248X_CB_DEVICE_RESET_NEEDED) {
         debug("Device reset needed\n");
         oneWire.deviceReset();
         oneWireInit();
@@ -96,8 +97,8 @@ int main() {
 
 ## Example reading DS18B20 and passing I2C object
 ```cpp
-#include "mbed.h"
 #include "DS248X.h"
+#include "mbed.h"
 
 I2C i2c(I2C_SDA, I2C_SCL);
 DS248X oneWire;
@@ -125,7 +126,7 @@ int main() {
 
         oneWire.resetSearch();
 
-        if (rom[0] != 0x10 && rom[0] != 0x28) { // DS18S20 or DS18B20
+        if (rom[0] != 0x10 && rom[0] != 0x28) {  // DS18S20 or DS18B20
             debug("Not a temperature sensor\n");
             continue;
         }
@@ -142,18 +143,18 @@ int main() {
 
             // start conversion
             data[0] = 0x44;
-            oneWire.writeBytes(data, 1, true); // use SPU if in parasitic mode
+            oneWire.writeBytes(data, 1, true);  // use SPU if in parasitic mode
 
             // wait for conversion
-            ThisThread::sleep_for(750ms); // default conversion (12bit) time is 750ms
+            ThisThread::sleep_for(750ms);  // default conversion (12bit) time is 750ms
 
             oneWire.reset();
             oneWire.select(rom);
 
             // Read Scratchpad
             data[0] = 0xBE;
-            oneWire.writeBytes(data, 1, true); // use SPU if in parasitic mode
-            oneWire.readBytes(data, 9, true); // use SPU if in parasitic mode
+            oneWire.writeBytes(data, 1, true);  // use SPU if in parasitic mode
+            oneWire.readBytes(data, 9, true);   // use SPU if in parasitic mode
 
             if (!oneWire.crc8(data, 9)) {
                 debug("Invalid CRC\n");
@@ -169,25 +170,26 @@ int main() {
             printf("\n");
 
             switch (rom[0]) {
-                case 0x10: { // DS18S20
+                case 0x10: {  // DS18S20
                     raw = raw << 3;
 
                     if (data[7] == 0x10) {
                         raw = (raw & 0xFFF0) + 12 - data[6];
                     }
-                }
-                break;
+                } break;
 
-                case 0x28: { // DS18B20
-                    char cfg = (data[4] & 0x60);  // default is 12 bit resolution, 750 ms conversion time
+                case 0x28: {  // DS18B20
 
-                    if (cfg == 0x00) { // 9 bit resolution, 93.75 ms
+                    char cfg = (data[4] & 0x60);  // default is 12 bit resolution
+                                                  // 750ms conversion time
+
+                    if (cfg == 0x00) {  // 9 bit resolution, 93.75 ms
                         raw &= ~7;
 
-                    } else if (cfg == 0x20) { // 10 bit res, 187.5 ms
+                    } else if (cfg == 0x20) {  // 10 bit res, 187.5 ms
                         raw &= ~3;
 
-                    } else if (cfg == 0x40) { // 11 bit res, 375 ms
+                    } else if (cfg == 0x40) {  // 11 bit res, 375 ms
                         raw &= ~1;
                     }
                 }

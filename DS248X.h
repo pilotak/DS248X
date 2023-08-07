@@ -34,17 +34,17 @@ SOFTWARE.
 using namespace std::chrono;
 
 #ifndef TRACE_GROUP
-#define TRACE_GROUP "WIRE"
+  #define TRACE_GROUP "WIRE"
 #endif
 
 #if !defined(MBED_CONF_DS248X_DEBUG)
-#define tr_error(...) \
+  #define tr_error(...) \
     {}
-#define tr_warning(...) \
+  #define tr_warning(...) \
     {}
-#define tr_info(...) \
+  #define tr_info(...) \
     {}
-#define tr_debug(...) \
+  #define tr_debug(...) \
     {}
 #endif
 
@@ -69,274 +69,265 @@ using namespace std::chrono;
 #define DS248X_CB_DEVICE_RESET_NEEDED 3
 
 class DS248X {
-   public:
-    typedef enum {
-        ActivePullUp = DS248X_CONFIG_APU,
-        StrongPullUp = DS248X_CONFIG_SPU,
-        OverdriveSpeed = DS248X_CONFIG_WS  // perform reset() after setting this
-    } ds248x_config_t;
+ public:
+  typedef enum {
+    ActivePullUp = DS248X_CONFIG_APU,
+    StrongPullUp = DS248X_CONFIG_SPU,
+    OverdriveSpeed = DS248X_CONFIG_WS  // perform reset() after setting this
+  } ds248x_config_t;
 
-    DS248X(uint8_t address = DS248X_DEFAULT_ADDRESS);
-    DS248X(PinName sda, PinName scl, uint8_t address = DS248X_DEFAULT_ADDRESS,
-           uint32_t frequency = 400000);
-    virtual ~DS248X(void);
+  DS248X(uint8_t address = DS248X_DEFAULT_ADDRESS);
+  DS248X(PinName sda, PinName scl, uint8_t address = DS248X_DEFAULT_ADDRESS, uint32_t frequency = 400000);
+  virtual ~DS248X(void);
 
-    /**
-     * @brief Initialise the chip
-     *
-     * @param i2c_obj pass I2C object if you didn't specify pins in constructor
-     * @return true if successful, otherwise false
-     */
-    bool init(I2C* i2c_obj = nullptr);
+  /**
+   * @brief Initialise the chip
+   *
+   * @param i2c_obj pass I2C object if you didn't specify pins in constructor
+   * @return true if successful, otherwise false
+   */
+  bool init(I2C* i2c_obj = nullptr);
 
-    /**
-     * @brief Set configuration
-     *
-     * @param config configuration type
-     * @return true if successful, otherwise false
-     */
-    bool setConfig(ds248x_config_t config);
+  /**
+   * @brief Set configuration
+   *
+   * @param config configuration type
+   * @return true if successful, otherwise false
+   */
+  bool setConfig(ds248x_config_t config);
 
-    /**
-     * @brief Clear configuration
-     *
-     * @param config configuration type
-     * @return true if successful, otherwise false
-     */
-    bool clearConfig(ds248x_config_t config);
+  /**
+   * @brief Clear configuration
+   *
+   * @param config configuration type
+   * @return true if successful, otherwise false
+   */
+  bool clearConfig(ds248x_config_t config);
 
-    /**
-     * @brief Load config from device
-     *
-     * @return true if successful, otherwise false
-     */
-    bool loadConfig();
+  /**
+   * @brief Load config from device
+   *
+   * @return true if successful, otherwise false
+   */
+  bool loadConfig();
 
-    /**
-     * @brief Select channel for DS248X-800 only
-     *
-     * @param channel
-     * @return true if successful, otherwise false
-     */
-    bool selectChannel(uint8_t channel);
+  /**
+   * @brief Select channel for DS248X-800 only
+   *
+   * @param channel
+   * @return true if successful, otherwise false
+   */
+  bool selectChannel(uint8_t channel);
 
-    /**
-     * @brief Reset the device
-     *
-     * @return true if successful, otherwise false
-     */
-    bool deviceReset();
+  /**
+   * @brief Reset the device
+   *
+   * @return true if successful, otherwise false
+   */
+  bool deviceReset();
 
-    /**
-     * @brief Compute CRC
-     *
-     * @param data a pointer to the data block
-     * @param len the size of the data
-     * @return CRC
-     */
-    static char computeCRC(const char* data, size_t len = 8);
+  /**
+   * @brief Compute CRC
+   *
+   * @param data a pointer to the data block
+   * @param len the size of the data
+   * @return CRC
+   */
+  static char computeCRC(const char* data, size_t len = 8);
 
-    /**
-     * @brief Check if CRC math the data
-     *
-     * @param data a pointer to the data block where the last byte is the CRC
-     * @param len the size of the data
-     * @return true if CRC math, otherwise false
-     */
-    bool crc8(const char* data, size_t len);
+  /**
+   * @brief Check if CRC math the data
+   *
+   * @param data a pointer to the data block where the last byte is the CRC
+   * @param len the size of the data
+   * @return true if CRC math, otherwise false
+   */
+  bool crc8(const char* data, size_t len);
 
-    /**
-     * @brief Attach callback for events
-     *
-     * @param function callback
-     */
-    void attach(Callback<void(char)> function);
+  /**
+   * @brief Attach callback for events
+   *
+   * @param function callback
+   */
+  void attach(Callback<void(char)> function);
 
-    // 1-Wire commands
-    /**
-     * @brief Write single byte to 1-wire bus
-     *
-     * @param data byte to send
-     * @param spu whether to assert strong pullup
-     * @return true if successful, otherwise false
-     */
-    bool write(char data, bool spu = false);
+  // 1-Wire commands
+  /**
+   * @brief Write single byte to 1-wire bus
+   *
+   * @param data byte to send
+   * @param spu whether to assert strong pullup
+   * @return true if successful, otherwise false
+   */
+  bool write(char data, bool spu = false);
 
-    /**
-     * @brief Read single byte from 1-wire bus
-     *
-     * @param buffer place to put the reading (1 byte)
-     * @param spu whether to assert strong pullup
-     * @return true if successful, otherwise false
-     */
-    bool read(char* buffer, bool spu = false);
+  /**
+   * @brief Read single byte from 1-wire bus
+   *
+   * @param buffer place to put the reading (1 byte)
+   * @param spu whether to assert strong pullup
+   * @return true if successful, otherwise false
+   */
+  bool read(char* buffer, bool spu = false);
 
-    /**
-     * @brief Write multiple bytes to 1-wire bus
-     *
-     * @param data a pointer to the data block
-     * @param len the size of the data to be written
-     * @param spu whether to assert strong pullup
-     * @return true if successful, otherwise false
-     */
-    bool writeBytes(const char* data, size_t len, bool spu = false);
+  /**
+   * @brief Write multiple bytes to 1-wire bus
+   *
+   * @param data a pointer to the data block
+   * @param len the size of the data to be written
+   * @param spu whether to assert strong pullup
+   * @return true if successful, otherwise false
+   */
+  bool writeBytes(const char* data, size_t len, bool spu = false);
 
-    /**
-     * @brief Read multiple bytes from 1-wire bus
-     *
-     * @param buffer place to put the reading
-     * @param len size of data to read (make sure it fits into buffer)
-     * @param spu whether to assert strong pullup
-     * @return true if successful, otherwise false
-     */
-    bool readBytes(char* buffer, size_t len, bool spu = false);
+  /**
+   * @brief Read multiple bytes from 1-wire bus
+   *
+   * @param buffer place to put the reading
+   * @param len size of data to read (make sure it fits into buffer)
+   * @param spu whether to assert strong pullup
+   * @return true if successful, otherwise false
+   */
+  bool readBytes(char* buffer, size_t len, bool spu = false);
 
-    /**
-     * @brief Write bit to 1-wire bus
-     *
-     * @param bit bit to send
-     * @return true if successful, otherwise false
-     */
-    bool writeBit(bool bit);
+  /**
+   * @brief Write bit to 1-wire bus
+   *
+   * @param bit bit to send
+   * @return true if successful, otherwise false
+   */
+  bool writeBit(bool bit);
 
-    /**
-     * @brief Write bit from 1-wire bus
-     *
-     * @param spu whether to assert strong pullup
-     * @return result bit
-     */
-    bool readBit(bool spu = false);
+  /**
+   * @brief Write bit from 1-wire bus
+   *
+   * @param spu whether to assert strong pullup
+   * @return result bit
+   */
+  bool readBit(bool spu = false);
 
-    /**
-     * @brief Creates reset condition on 1-wire bus
-     *
-     * @return true if device on the bus, false if no device/error
-     */
-    bool reset();
+  /**
+   * @brief Creates reset condition on 1-wire bus
+   *
+   * @return true if device on the bus, false if no device/error
+   */
+  bool reset();
 
-    /**
-     * @brief Creates skip condition on 1-wire bus
-     *
-     * @return true if successful, otherwise false
-     */
-    bool skip();
+  /**
+   * @brief Creates skip condition on 1-wire bus
+   *
+   * @return true if successful, otherwise false
+   */
+  bool skip();
 
-    /**
-     * @brief Select device on 1-wire bus
-     *
-     * @param rom unique address of device
-     * @return true if successful, otherwise false
-     */
-    bool select(const char* rom);
+  /**
+   * @brief Select device on 1-wire bus
+   *
+   * @param rom unique address of device
+   * @return true if successful, otherwise false
+   */
+  bool select(const char* rom);
 
-    /**
-     * @brief Search for device on 1-wire bus
-     *
-     * @param rom place to put the unique address of device (8 bytes)
-     * @return true if successful, otherwise false
-     */
-    bool search(char* rom);
+  /**
+   * @brief Search for device on 1-wire bus
+   *
+   * @param rom place to put the unique address of device (8 bytes)
+   * @return true if successful, otherwise false
+   */
+  bool search(char* rom);
 
-    /**
-     * @brief Reset search for next usage
-     *
-     */
-    void resetSearch();
+  /**
+   * @brief Reset search for next usage
+   *
+   */
+  void resetSearch();
 
-    /**
-     * @brief Set a family code for the next search.
-     * If on it's on the bus it will be the first
-     * result from search()
-     *
-     * @param family_code
-     */
-    void searchFamily(uint8_t family_code);
+  /**
+   * @brief Set a family code for the next search.
+   * If on it's on the bus it will be the first
+   * result from search()
+   *
+   * @param family_code
+   */
+  void searchFamily(uint8_t family_code);
 
-   protected:
-    typedef enum {
-        CMD_1WT = 0x78,   // 1-Wire triplet
-        CMD_1WSB = 0x87,  // 1-Wire single bit
-        CMD_1WRB = 0x96,  // 1-Wire read byte
-        CMD_1WWB = 0xA5,  // 1-Wire write byte
-        CMD_1WRS = 0xB4,  // 1-Wire reset
-        CMD_CHSL = 0xC3,  // channel select
-        CMD_WCFG = 0xD2,  // write configuration
-        CMD_SRP = 0xE1,   // set read pointer
-        CMD_DRST = 0xF0,  // device reset
-    } ds248x_cmd_t;
+ protected:
+  typedef enum {
+    CMD_1WT = 0x78,   // 1-Wire triplet
+    CMD_1WSB = 0x87,  // 1-Wire single bit
+    CMD_1WRB = 0x96,  // 1-Wire read byte
+    CMD_1WWB = 0xA5,  // 1-Wire write byte
+    CMD_1WRS = 0xB4,  // 1-Wire reset
+    CMD_CHSL = 0xC3,  // channel select
+    CMD_WCFG = 0xD2,  // write configuration
+    CMD_SRP = 0xE1,   // set read pointer
+    CMD_DRST = 0xF0,  // device reset
+  } ds248x_cmd_t;
 
-    typedef enum {
-        POINTER_CONFIG = 0xC3,
-        POINTER_DATA = 0xE1,
-        POINTER_STATUS = 0xF0
-    } ds248x_pointer_t;
+  typedef enum { POINTER_CONFIG = 0xC3, POINTER_DATA = 0xE1, POINTER_STATUS = 0xF0 } ds248x_pointer_t;
 
-    typedef enum {
-        WIRE_COMMAND_SELECT = 0x55,
-        WIRE_COMMAND_SKIP = 0xCC,
-        WIRE_COMMAND_SEARCH = 0xF0
-    } ds248x_wire_cmd_t;
+  typedef enum { WIRE_COMMAND_SELECT = 0x55, WIRE_COMMAND_SKIP = 0xCC, WIRE_COMMAND_SEARCH = 0xF0 } ds248x_wire_cmd_t;
 
-    /**
-     * @brief Send current config to device
-     *
-     * @return true if successful, otherwise false
-     */
-    bool sendConfig();
+  /**
+   * @brief Send current config to device
+   *
+   * @return true if successful, otherwise false
+   */
+  bool sendConfig();
 
-    /**
-     * @brief Set the read pointer from where to read the data
-     *
-     * @param address where to read from
-     * @return true if successful, otherwise false
-     */
-    bool setReadPointer(ds248x_pointer_t address);
+  /**
+   * @brief Set the read pointer from where to read the data
+   *
+   * @param address where to read from
+   * @return true if successful, otherwise false
+   */
+  bool setReadPointer(ds248x_pointer_t address);
 
-   protected:
-    char _rom[8] = {0};
-    char _config = UCHAR_MAX;
-    /**
-     * @brief Write data to device
-     *
-     * @param data a pointer to the data block
-     * @param len the size of the data to be written
-     * @return true if successful, otherwise false
-     */
-    bool deviceWriteBytes(const char* data, size_t len = 1);
+ protected:
+  char _rom[8] = {0};
+  char _config = UCHAR_MAX;
+  /**
+   * @brief Write data to device
+   *
+   * @param data a pointer to the data block
+   * @param len the size of the data to be written
+   * @return true if successful, otherwise false
+   */
+  bool deviceWriteBytes(const char* data, size_t len = 1);
 
-    /**
-     * @brief Read the data from device
-     *
-     * @param buffer place to put the reading
-     * @param len size of data to read (make sure it fits into buffer)
-     * @return true if successful, otherwise false
-     */
-    bool deviceReadBytes(char* buffer, size_t len = 1);
+  /**
+   * @brief Read the data from device
+   *
+   * @param buffer place to put the reading
+   * @param len size of data to read (make sure it fits into buffer)
+   * @return true if successful, otherwise false
+   */
+  bool deviceReadBytes(char* buffer, size_t len = 1);
 
-    /**
-     * @brief Wait until device not busy
-     *
-     * @param status place to put the reading (1 byte)
-     * @return true if successful, otherwise false
-     */
-    bool waitBusy(char* status = nullptr);
+  /**
+   * @brief Wait until device not busy
+   *
+   * @param status place to put the reading (1 byte)
+   * @return true if successful, otherwise false
+   */
+  bool waitBusy(char* status = nullptr);
 
-   private:
-    I2C* _i2c;
-    Callback<void(char)> _callback = nullptr;
-    uint32_t _i2c_buffer[sizeof(I2C) / sizeof(uint32_t)];
-    const char _address = DS248X_DEFAULT_ADDRESS;
+ private:
+  I2C* _i2c;
+  Callback<void(char)> _callback = nullptr;
+  uint32_t _i2c_buffer[sizeof(I2C) / sizeof(uint32_t)];
+  const char _address = DS248X_DEFAULT_ADDRESS;
 
-    uint8_t _last_discrepancy = 0;
-    uint8_t _last_family_discrepancy = 0;
-    bool _last_device_flag = false;
+  uint8_t _last_discrepancy = 0;
+  uint8_t _last_family_discrepancy = 0;
+  bool _last_device_flag = false;
 
-    /**
-     * @brief Check for reset & short on the bus
-     *
-     * @param status a pointer to the status data
-     */
-    void checkError(char* status);
+  /**
+   * @brief Check for reset & short on the bus
+   *
+   * @param status a pointer to the status data
+   */
+  void checkError(char* status);
 };
 
 #endif  // DS248X_H

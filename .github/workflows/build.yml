@@ -17,3 +17,36 @@ jobs:
         with:
           clang-format-version: "16"
           check-path: "./"
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Install ARM GCC
+        run: |
+          wget -nv https://developer.arm.com/-/media/Files/downloads/gnu-rm/9-2019q4/gcc-arm-none-eabi-9-2019-q4-major-x86_64-linux.tar.bz2
+          sudo tar -C /bin/ -xjf gcc-arm-none-eabi-9-2019-q4-major-x86_64-linux.tar.bz2
+          echo "MBED_GCC_ARM_PATH=/bin/gcc-arm-none-eabi-9-2019-q4-major/bin/" >> $GITHUB_ENV
+
+      - name: Install mbed
+        run: |
+          pip install wheel
+          pip install exdown==0.7.1
+          pip install mbed-cli
+
+      - name: Create mbed project
+        run: |
+          mbed new .
+          mbed deploy
+
+      - name: Extract code from README
+        run: |
+          echo 'import exdown' >> extract.py
+          echo 'code = exdown.extract("README.md", syntax_filter="cpp")' >> extract.py
+          echo 'print(code[0][0])' >> extract.py
+          python extract.py > main.cpp
+
+      - name: Compile
+        run: |
+          mbed compile -t GCC_ARM -m NUCLEO_F103RB
