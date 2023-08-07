@@ -31,7 +31,6 @@ SOFTWARE.
 #include "mbed-trace/mbed_trace.h"
 #include "mbed.h"
 
-
 using namespace std::chrono;
 
 #ifndef TRACE_GROUP
