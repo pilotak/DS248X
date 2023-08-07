@@ -1,7 +1,7 @@
 /*
 MIT License
 
-Copyright (c) 2020 Pavel Slama
+Copyright (c) 2023 Pavel Slama
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -22,15 +22,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#include "mbed.h"
 #include "DS248X.h"
 
-DS248X::DS248X(uint8_t address):
-    _address(address) {
-}
+DS248X::DS248X(uint8_t address) : _address(address) {}
 
-DS248X::DS248X(PinName sda, PinName scl, uint8_t address, uint32_t frequency):
-    _address(address) {
+DS248X::DS248X(PinName sda, PinName scl, uint8_t address, uint32_t frequency)
+    : _address(address) {
     _i2c = new (_i2c_buffer) I2C(sda, scl);
     _i2c->frequency(frequency);
 }
@@ -121,7 +118,7 @@ bool DS248X::deviceReset() {
 
     resetSearch();
 
-    if (!deviceReadBytes(buf, 1)) {
+    if (!deviceReadBytes(buf)) {
         return false;
     }
 
@@ -214,7 +211,7 @@ bool DS248X::writeBit(bool bit) {
 
 bool DS248X::readBit(bool spu) {
     char buf[1];
-    
+
     if (spu && !setConfig(StrongPullUp);) {
         return false;
     }
@@ -261,7 +258,8 @@ bool DS248X::skip() {
 }
 
 bool DS248X::select(const char *rom) {
-    tr_info("Selecting: %s", tr_array(reinterpret_cast<const uint8_t *>(rom), 8));
+    tr_info("Selecting: %s",
+            tr_array(reinterpret_cast<const uint8_t *>(rom), 8));
 
     if (!write(WIRE_COMMAND_SELECT)) {
         return false;
@@ -389,7 +387,8 @@ void DS248X::resetSearch() {
 bool DS248X::deviceWriteBytes(const char *data, size_t len) {
     int32_t ack;
 
-    tr_debug("Sending[%u]: %s", len, tr_array(reinterpret_cast<const uint8_t *>(data), len));
+    tr_debug("Sending[%u]: %s", len,
+             tr_array(reinterpret_cast<const uint8_t *>(data), len));
 
     _i2c->lock();
     ack = _i2c->write(_address, data, len);
@@ -415,7 +414,8 @@ bool DS248X::deviceReadBytes(char *buffer, size_t len) {
         return false;
     }
 
-    tr_debug("Read:[%u]: %s", len, tr_array(reinterpret_cast<uint8_t *>(buffer), len));
+    tr_debug("Read:[%u]: %s", len,
+             tr_array(reinterpret_cast<uint8_t *>(buffer), len));
 
     return true;
 }
@@ -427,7 +427,8 @@ bool DS248X::waitBusy(char *status) {
     _i2c->lock();
     _i2c->read(_address, buf, 1);
 
-    while ((buf[0] & DS248X_STATUS_1WB) && ((poll_count++) < MBED_CONF_DS248X_POLL_LIMIT)) {
+    while ((buf[0] & DS248X_STATUS_1WB) &&
+           ((poll_count++) < MBED_CONF_DS248X_POLL_LIMIT)) {
         _i2c->read(_address, buf, 1, buf[0] & DS248X_STATUS_1WB);
 
         // tr_debug("Status: %c%c%c%c%c%c%c%c",
@@ -486,7 +487,7 @@ bool DS248X::loadConfig() {
         return false;
     }
 
-    if (!deviceReadBytes(buf, 1)) {
+    if (!deviceReadBytes(buf)) {
         return false;
     }
 
@@ -497,13 +498,13 @@ bool DS248X::loadConfig() {
 }
 
 bool DS248X::write(char data, bool spu) {
-    char buf[2];
-    buf[0] = (char)CMD_1WWB;
-    buf[1] = data;
-
     if (spu && !setConfig(StrongPullUp);) {
         return false;
     }
+
+    char buf[2];
+    buf[0] = (char)CMD_1WWB;
+    buf[1] = data;
 
     if (!deviceWriteBytes(buf, 2)) {
         return false;
@@ -513,11 +514,11 @@ bool DS248X::write(char data, bool spu) {
 }
 
 bool DS248X::read(char *buffer) {
-    buffer[0] = (char)CMD_1WRB;
-
     if (spu && !setConfig(StrongPullUp);) {
         return false;
     }
+
+    buffer[0] = (char)CMD_1WRB;
 
     if (!deviceWriteBytes(buffer)) {
         return false;

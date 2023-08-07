@@ -1,0 +1,5 @@
+Language: Cpp
+BasedOnStyle: Google
+SeparateDefinitionBlocks: Always
+IndentWidth: 4
+EmptyLineBeforeAccessModifier: LogicalBlock
