@@ -211,7 +211,7 @@ bool DS248X::writeBit(bool bit) {
 bool DS248X::readBit(bool spu) {
   char buf[1];
 
-  if (spu && !setConfig(StrongPullUp);) {
+  if (spu && !setConfig(StrongPullUp)) {
     return false;
   }
 
@@ -493,7 +493,7 @@ bool DS248X::loadConfig() {
 }
 
 bool DS248X::write(char data, bool spu) {
-  if (spu && !setConfig(StrongPullUp);) {
+  if (spu && !setConfig(StrongPullUp)) {
     return false;
   }
 
@@ -509,7 +509,7 @@ bool DS248X::write(char data, bool spu) {
 }
 
 bool DS248X::read(char *buffer, bool spu) {
-  if (spu && !setConfig(StrongPullUp);) {
+  if (spu && !setConfig(StrongPullUp)) {
     return false;
   }
 
